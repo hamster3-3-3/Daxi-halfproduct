@@ -737,85 +737,187 @@ function parseSummaryFromWB(wb, fileName) {
 }
 
 function parseDetailsFromWB(wb) {
-  const out = [];
-  // 只抓「合計MMDD」這類日別明細頁（避免合計/01-30合計等公式頁造成全空或重覆）
-  const sheets = wb.SheetNames.filter(n => {
+  // 輸出：日別明細（供「半成品展開」彙總/篩選/排序）
+  // 支援兩種格式：
+  // 1) 晉欣格式：工作表名為「合計MMDD」
+  // 2) 大溪格式：工作表名為「MMDD分析標準表」，且表內含多段「明細展開」表格（報廢/超用/共用類…）
+  const merged = new Map();
+  const upsert = (rec) => {
+    const key = `${rec.date}｜${rec.product}｜${rec.semi}`;
+    const prev = merged.get(key);
+    if (!prev) { merged.set(key, rec); return; }
+    // 同一日同品同半成品可能在同一張表被列在不同區塊（報廢前10/超用前10/共用類…）
+    // 以「資訊較完整」者覆蓋（優先保留 order/output/price 等為數值者；否則保留差異金額較大者）
+    const score = (x) => {
+      const nums = ['order','output','price','diffAmt','scrapAmt','overuseAmt'].reduce((a,k)=>a+(Number.isFinite(x[k]) && x[k]!==0 ? 1:0),0);
+      const mag = Math.abs(Number(x.diffAmt||0)) + Math.abs(Number(x.scrapAmt||0)) + Math.abs(Number(x.overuseAmt||0));
+      return nums*1e6 + mag;
+    };
+    if (score(rec) >= score(prev)) merged.set(key, rec);
+  };
+
+  // ---------- 模式 A：晉欣（合計MMDD） ----------
+  const daySheets = wb.SheetNames.filter(n => {
     const t = n.replace(/\s+/g,'');
-    const m = t.match(/^合計(\d{3,4})$/); // e.g. 合計1224 / 合計0105
-    return !!m;
+    return /^合計(\d{3,4})$/.test(t);
   });
 
-  for (const sname of sheets) {
+  if (daySheets.length) {
+    for (const sname of daySheets) {
+      const ws = wb.Sheets[sname];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      if (!rows || rows.length < 4) continue;
+
+      // find header row (contains 商品名稱 & 半成品名稱)
+      let h = -1;
+      for (let i=0;i<Math.min(rows.length, 25);i++) {
+        const row = (rows[i] || []).map(normalizeHeader);
+        if (row.some(x => x.includes('商品名稱')) && row.some(x => x.includes('半成品名稱'))) { h = i; break; }
+      }
+      if (h < 0) continue;
+
+      const header = (rows[h] || []).map(normalizeHeader);
+      const idx = (kw) => header.findIndex(h => h.includes(kw));
+
+      // 這些「合計MMDD」頁第一欄多為「序號」但實際內容是日期
+      const iDate = idx('日期') >= 0 ? idx('日期') : 0;
+      const iProd = idx('商品名稱');
+      const iSemi = idx('半成品名稱');
+      const iPrice = idx('單價');
+      const iOrder = idx('訂單量');
+      const iOut = idx('出料量');
+      const iRefill = idx('補單量');
+      const iDiffQty = idx('差異量') >= 0 ? idx('差異量') : idx('差異數量');
+      const iDiffAmt = idx('差異量(金額)') >= 0 ? idx('差異量(金額)') : idx('差異量（金額）');
+      const iScrapQty = idx('報廢量');
+      const iScrapAmt = idx('報廢量(金額)') >= 0 ? idx('報廢量(金額)') : idx('報廢量（金額）');
+      const iOverQty = idx('超用量') >= 0 ? idx('超用量') : idx('超用');
+      const iOverAmt = idx('超用金額') >= 0 ? idx('超用金額') : idx('超用量(金額)');
+
+      if (iProd < 0 || iSemi < 0) continue;
+
+      for (let r=h+1; r<rows.length; r++) {
+        const row = rows[r] || [];
+        const prod = (row[iProd] ?? '').toString().trim();
+        const semi = (row[iSemi] ?? '').toString().trim();
+        if (!prod && !semi) continue;
+
+        const d = parseMaybeDate(row[iDate]);
+        if (!d) continue;
+
+        const price = Number(row[iPrice] ?? 0) || 0;
+        const order = Number(row[iOrder] ?? 0) || 0;
+        const output = Number(row[iOut] ?? 0) || 0;
+        const refill = Number(row[iRefill] ?? 0) || 0;
+        const diffQty = Number(row[iDiffQty] ?? (output + refill - order)) || 0;
+        const diffAmt = Number(row[iDiffAmt] ?? (diffQty * price)) || 0;
+        const scrapQty = Number(row[iScrapQty] ?? 0) || 0;
+        const scrapAmt = Number(row[iScrapAmt] ?? (scrapQty * price)) || 0;
+        const overuseQty = Number(row[iOverQty] ?? 0) || 0;
+        const overuseAmt = Number(row[iOverAmt] ?? (overuseQty * price)) || 0;
+
+        upsert({
+          date: toISO(d),
+          product: prod,
+          semi: semi,
+          price,
+          order,
+          output,
+          refill,
+          prodRate: order > 0 ? (output / order) : null,
+          diffQty,
+          diffAmt,
+          scrapQty,
+          scrapAmt,
+          overuseQty,
+          overuseAmt
+        });
+      }
+    }
+
+    return Array.from(merged.values());
+  }
+
+  // ---------- 模式 B：大溪（MMDD分析標準表） ----------
+  const dxSheets = wb.SheetNames.filter(n => {
+    const t = n.replace(/\s+/g,'');
+    return /^\d{4}分析標準表$/.test(t);
+  });
+
+  for (const sname of dxSheets) {
     const ws = wb.Sheets[sname];
     const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-    if (!rows || rows.length < 4) continue;
+    if (!rows || rows.length < 10) continue;
 
-    // find header row (contains 商品名稱 & 半成品名稱)
-    let h = -1;
-    for (let i=0;i<Math.min(rows.length, 25);i++) {
-      const row = (rows[i] || []).map(normalizeHeader);
-      if (row.some(x => x.includes('商品名稱')) && row.some(x => x.includes('半成品名稱'))) { h = i; break; }
+    // 取日期：通常在前幾列有「日期」與對應的日期值（Excel Date/文字/數字）
+    let d = null;
+    for (let i=0; i<Math.min(rows.length, 12) && !d; i++) {
+      for (let j=0; j<Math.min((rows[i]||[]).length, 6) && !d; j++) {
+        const cand = parseMaybeDate(rows[i][j]);
+        if (cand) d = cand;
+      }
     }
-    if (h < 0) continue;
+    if (!d) continue;
+    const iso = toISO(d);
 
-    const header = (rows[h] || []).map(normalizeHeader);
-    const idx = (kw) => header.findIndex(h => h.includes(kw));
+    // 找每段「明細展開」表格的起點：行首為「排序」且第二欄含「半成品」
+    // 表頭分三行，資料通常從起點+3 開始
+    for (let i=0; i<rows.length; i++) {
+      const r0 = (rows[i]||[])[0];
+      const r1 = (rows[i]||[])[1];
+      if (String(r0||'').trim() === '排序' && String(r1||'').includes('半成品')) {
+        const start = i + 3;
+        let blank = 0;
 
-    // 這些「合計MMDD」頁第一欄多為「序號」但實際內容是日期
-    const iDate = idx('日期') >= 0 ? idx('日期') : 0;
-    const iProd = idx('商品名稱');
-    const iSemi = idx('半成品名稱');
-    const iPrice = idx('單價');
-    const iOrder = idx('訂單量');
-    const iOut = idx('出料量');
-    const iRefill = idx('補單量');
-    const iDiffQty = idx('差異量') >= 0 ? idx('差異量') : idx('差異數量');
-    const iDiffAmt = idx('差異量(金額)') >= 0 ? idx('差異量(金額)') : idx('差異量（金額）');
-    const iScrapQty = idx('報廢量');
-    const iScrapAmt = idx('報廢量(金額)') >= 0 ? idx('報廢量(金額)') : idx('報廢量（金額）');
-    const iOverAmt = idx('超用金額') >= 0 ? idx('超用金額') : idx('超用量(金額)');
+        for (let r=start; r<rows.length; r++) {
+          const row = rows[r] || [];
+          const semi = (row[1] ?? '').toString().trim();       // B: 半成品名稱
+          const prod = (row[17] ?? '').toString().trim();      // R: 備註-商品名稱
+          const order = Number(row[3] ?? 0) || 0;              // D: 訂單需求(kg)
+          const output = Number(row[4] ?? 0) || 0;             // E: 實際產出(kg)
+          const refill = Number(row[5] ?? 0) || 0;             // F: 補單(kg)
+          const price = Number(row[6] ?? 0) || 0;              // G: 單價(元)
+          const scrapQty = Number(row[9] ?? 0) || 0;           // J: 報廢kg
 
-    if (iProd < 0 || iSemi < 0) continue;
+          const hasAny = !!(semi || prod || order || output || refill || price || scrapQty);
+          if (!hasAny) {
+            blank += 1;
+            if (blank >= 3) break; // 連續空白，視為該段結束
+            continue;
+          }
+          blank = 0;
 
-    for (let r=h+1; r<rows.length; r++) {
-      const row = rows[r];
-      const prod = (row[iProd] ?? '').toString().trim();
-      const semi = (row[iSemi] ?? '').toString().trim();
-      if (!prod && !semi) continue;
+          if (!semi && !prod) continue;
 
-      const d = parseMaybeDate(row[iDate]);
-      if (!d) continue;
+          const diffQty = (output + refill) - order;
+          const diffAmt = diffQty * price;
+          const scrapAmt = scrapQty * price;
+          const overuseQtyRaw = diffQty - scrapQty;
+          const overuseQty = overuseQtyRaw > 0 ? overuseQtyRaw : 0;
+          const overuseAmt = overuseQty * price;
 
-      const price = Number(row[iPrice] ?? 0) || 0;
-      const order = Number(row[iOrder] ?? 0) || 0;
-      const outQty = Number(row[iOut] ?? 0) || 0;
-      const refill = Number(row[iRefill] ?? 0) || 0;
-      const diffQty = Number(row[iDiffQty] ?? 0) || 0;
-      const diffAmt = Number(row[iDiffAmt] ?? 0) || 0;
-      const scrapQty = Number(row[iScrapQty] ?? 0) || 0;
-      const scrapAmt = Number(row[iScrapAmt] ?? 0) || 0;
-      const overuseAmt = Number(row[iOverAmt] ?? 0) || 0;
-      const overuseQty = price > 0 ? (overuseAmt / price) : 0;
-
-      out.push({
-        date: toISO(d),
-        product: prod,
-        semi: semi,
-        price,
-        order,
-        output: outQty,
-        refill,
-        prodRate: order > 0 ? (outQty / order) : null,
-        diffQty,
-        diffAmt,
-        scrapQty,
-        scrapAmt,
-        overuseQty,
-        overuseAmt
-      });
+          upsert({
+            date: iso,
+            product: prod || '（未填商品名）',
+            semi,
+            price,
+            order,
+            output,
+            refill,
+            prodRate: order > 0 ? (output / order) : null,
+            diffQty,
+            diffAmt,
+            scrapQty,
+            scrapAmt,
+            overuseQty,
+            overuseAmt
+          });
+        }
+      }
     }
   }
-  return out;
+
+  return Array.from(merged.values());
 }
 
 async function loadAllData() {
