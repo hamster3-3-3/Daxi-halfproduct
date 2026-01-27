@@ -388,11 +388,11 @@
                 <div id="itemTitle" class="text-xs muted mt-1">—</div>
               </div>
               <div class="flex flex-wrap gap-2 items-center">
-                <label class="chip"><input class="mr-1" type="checkbox" data-item="prodRate">實際生產率</label>
-                <label class="chip"><input class="mr-1" type="checkbox" data-item="diffAmt">差異金額</label>
-                <label class="chip"><input class="mr-1" type="checkbox" data-item="scrapAmt">報廢金額</label>
-                <label class="chip"><input class="mr-1" type="checkbox" data-item="overuseAmt">超用金額</label>
-                <label class="chip"><input class="mr-1" type="checkbox" data-item="refillQty">補單量</label>
+                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="prodRate" data-item="prodRate" checked>實際生產率</label>
+                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="diffAmt" data-item="diffAmt">差異金額</label>
+                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="scrapAmt" data-item="scrapAmt">報廢金額</label>
+                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="overuseAmt" data-item="overuseAmt">超用金額</label>
+                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="refillQty" data-item="refillQty">補單量</label>
               </div>
             </div>
 
@@ -1609,39 +1609,46 @@ function renderSelectedItem() {
 
 function renderItemChart(daily) {
   destroyChart('item');
-  const selected = Array.from(document.querySelectorAll('input[type=checkbox][data-item]'))
-    .filter(cb => cb.checked)
-    .map(cb => cb.dataset.item);
+
+  // single metric (radio)
+  const metric = document.querySelector('input[type=radio][name=itemMetric]:checked')?.value || 'prodRate';
 
   const meta = {
-    prodRate: {label:'實際生產率', axis:'y1', fmt:(v)=>fmtPct(v)},
-    diffAmt: {label:'差異金額', axis:'y', fmt:(v)=>fmtMoney(v)},
-    scrapAmt: {label:'報廢金額', axis:'y', fmt:(v)=>fmtMoney(v)},
-    overuseAmt: {label:'超用金額', axis:'y', fmt:(v)=>fmtMoney(v)},
-    refillQty: {label:'補單量', axis:'y2', fmt:(v)=>fmtInt(v)},
+    prodRate: {label:'實際生產率', type:'pct'},
+    diffAmt: {label:'差異金額', type:'money'},
+    scrapAmt: {label:'報廢金額', type:'money'},
+    overuseAmt: {label:'超用金額', type:'money'},
+    refillQty: {label:'補單量', type:'int'},
   };
 
   const labels = daily.map(r => r.date);
-  const datasets = selected.map(m => {
-    const axis = meta[m].axis;
-    const data = daily.map(r => {
-      if (m === 'prodRate') return r.prodRate ?? null;
-      if (m === 'refillQty') return r.refill ?? 0;
-      return Number(r[m]) || 0;
-    });
-    return {
-      label: meta[m].label,
-      data,
-      yAxisID: axis,
-      tension: 0.25,
-      pointRadius: labels.length > 45 ? 0 : 2
-    };
+  const data = daily.map(r => {
+    if (metric === 'prodRate') return r.prodRate ?? null;
+    if (metric === 'refillQty') return r.refill ?? 0;
+    return Number(r[metric]) || 0;
   });
+
+  const dataset = {
+    label: meta[metric]?.label || metric,
+    data,
+    tension: 0.25,
+    pointRadius: labels.length > 45 ? 0 : 2
+  };
+
+  const yTick = (v) => {
+    const t = meta[metric]?.type;
+    if (t === 'pct') return (Number(v)*100).toFixed(1) + '%';
+    if (t === 'int') return fmtInt(v);
+    // money
+    return fmtMoney(v).replace('NT$ ','');
+  };
+
+  const beginAtZero = (meta[metric]?.type !== 'money');
 
   const ctx = $('itemChart').getContext('2d');
   state.charts.item = new Chart(ctx, {
     type: 'line',
-    data: {labels, datasets},
+    data: {labels, datasets:[dataset]},
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -1651,11 +1658,10 @@ function renderItemChart(daily) {
         tooltip: {
           callbacks: {
             label: (ctx) => {
-              const m = selected[ctx.datasetIndex];
               const v = ctx.parsed.y;
-              if (!m) return ' ';
-              if (m === 'prodRate') return ' ' + ctx.dataset.label + ': ' + fmtPct(v);
-              if (m === 'refillQty') return ' ' + ctx.dataset.label + ': ' + fmtInt(v);
+              const t = meta[metric]?.type;
+              if (t === 'pct') return ' ' + ctx.dataset.label + ': ' + fmtPct(v);
+              if (t === 'int') return ' ' + ctx.dataset.label + ': ' + fmtInt(v);
               return ' ' + ctx.dataset.label + ': ' + fmtMoney(v);
             }
           }
@@ -1668,26 +1674,14 @@ function renderItemChart(daily) {
           }
         },
         y: {
-          beginAtZero: false,
-          ticks: { callback: (v)=>fmtMoney(v).replace('NT$ ','') }
-        },
-        y1: {
-          beginAtZero: true,
-          position: 'right',
-          grid: { drawOnChartArea:false },
-          ticks: { callback: (v)=>(v*100).toFixed(1)+'%' }
-        },
-        y2: {
-          beginAtZero: true,
-          position: 'right',
-          grid: { drawOnChartArea:false },
-          display: selected.includes('refillQty'),
-          ticks: { callback: (v)=>fmtInt(v) }
+          beginAtZero,
+          ticks: { callback: (v)=>yTick(v) }
         }
       }
     }
   });
 }
+
 
 function renderDetailTable(daily) {
   const tbody = $('detailTbody');
@@ -1837,9 +1831,9 @@ function wireUI() {
       renderKPIOnly();
     });
   });
-// item chart selection
-  document.querySelectorAll('input[type=checkbox][data-item]').forEach(cb => {
-    cb.addEventListener('change', () => {
+// item chart selection (single metric)
+  document.querySelectorAll('input[type=radio][name=itemMetric]').forEach(rb => {
+    rb.addEventListener('change', () => {
       if (!state.selectedKey) return;
       renderSelectedItem();
     });
