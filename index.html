@@ -1621,11 +1621,68 @@ function renderItemChart(daily) {
     refillQty: {label:'補單量', type:'int'},
   };
 
-  const labels = daily.map(r => r.date);
-  const data = daily.map(r => {
-    if (metric === 'prodRate') return r.prodRate ?? null;
-    if (metric === 'refillQty') return r.refill ?? 0;
-    return Number(r[metric]) || 0;
+  // ===== X 軸單位：依時間模式固定顯示 =====
+  // 年別 → 月；月別 → 週；週別 → 日；日別/指定範圍 → 日
+  const gran = (() => {
+    if (state.mode === 'year') return 'month';
+    if (state.mode === 'month') return 'week';
+    if (state.mode === 'week') return 'day';
+    return 'day';
+  })();
+
+  const weekStartMonISO = (isoDate) => {
+    const d = parseMaybeDate(isoDate);
+    if (!d) return isoDate;
+    const day = d.getDay(); // 0 Sun ... 6 Sat
+    // Monday start: 1
+    const diff = (day - 1 + 7) % 7;
+    const s = new Date(d);
+    s.setDate(s.getDate() - diff);
+    return toISO(s);
+  };
+
+  const bucketKey = (isoDate) => {
+    if (gran === 'day') return isoDate;              // YYYY-MM-DD
+    if (gran === 'month') return isoDate.slice(0,7); // YYYY-MM
+    // week
+    return weekStartMonISO(isoDate);                 // YYYY-MM-DD (Mon)
+  };
+
+  // 聚合（日→月 / 日→週 / 日→日）
+  const buckets = new Map();
+  for (const r of daily) {
+    const k = bucketKey(r.date);
+    if (!buckets.has(k)) {
+      buckets.set(k, {
+        key: k,
+        n: 0,
+        // for prodRate: use total output/order to compute rate
+        order: 0,
+        output: 0,
+        refill: 0,
+        diffAmt: 0,
+        scrapAmt: 0,
+        overuseAmt: 0
+      });
+    }
+    const b = buckets.get(k);
+    b.n += 1;
+    b.order += Number(r.order) || 0;
+    b.output += Number(r.output) || 0;
+    b.refill += Number(r.refill) || 0;
+    b.diffAmt += Number(r.diffAmt) || 0;
+    b.scrapAmt += Number(r.scrapAmt) || 0;
+    b.overuseAmt += Number(r.overuseAmt) || 0;
+  }
+
+  const keys = Array.from(buckets.keys()).sort((a,b)=>a.localeCompare(b));
+
+  const labels = keys; // internal labels (sortable)
+  const data = keys.map(k => {
+    const b = buckets.get(k);
+    if (metric === 'prodRate') return b.order > 0 ? (b.output / b.order) : null;
+    if (metric === 'refillQty') return b.refill || 0;
+    return Number(b[metric]) || 0;
   });
 
   const dataset = {
@@ -1633,6 +1690,20 @@ function renderItemChart(daily) {
     data,
     tension: 0.25,
     pointRadius: labels.length > 45 ? 0 : 2
+  };
+
+  const xLabelFmt = (raw) => {
+    if (gran === 'month') {
+      const mm = Number(String(raw).slice(5,7));
+      return (Number.isFinite(mm) ? `${mm}月` : raw);
+    }
+    if (gran === 'week') {
+      // raw is YYYY-MM-DD (Mon)
+      const s = String(raw);
+      return `${s.slice(5,7)}/${s.slice(8,10)}`;
+    }
+    // day
+    return shortLabel(raw); // MM-DD
   };
 
   const yTick = (v) => {
@@ -1643,7 +1714,8 @@ function renderItemChart(daily) {
     return fmtMoney(v).replace('NT$ ','');
   };
 
-  const beginAtZero = (meta[metric]?.type !== 'money');
+  // money / int 都從 0 起比較直觀；pct 也建議從 0 起
+  const beginAtZero = true;
 
   const ctx = $('itemChart').getContext('2d');
   state.charts.item = new Chart(ctx, {
@@ -1657,6 +1729,10 @@ function renderItemChart(daily) {
         legend: { position:'top' },
         tooltip: {
           callbacks: {
+            title: (items) => {
+              if (!items || !items.length) return '';
+              return xLabelFmt(items[0].label);
+            },
             label: (ctx) => {
               const v = ctx.parsed.y;
               const t = meta[metric]?.type;
@@ -1670,7 +1746,9 @@ function renderItemChart(daily) {
       scales: {
         x: {
           ticks: {
-            callback: function(value) { return shortLabel(this.getLabelForValue(value)); }
+            callback: function(value) {
+              return xLabelFmt(this.getLabelForValue(value));
+            }
           }
         },
         y: {
