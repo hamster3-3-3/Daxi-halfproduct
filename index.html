@@ -35,10 +35,23 @@
     .chip {
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 12px;
-      color: var(--muted);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--ink);
       background: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .chip:hover { box-shadow: 0 1px 0 rgba(15,23,42,.06); }
+    .chip input { display: none; }
+    .chip.active {
+      background: #0f172a;
+      border-color: #0f172a;
+      color: #fff;
     }
     .seg-btn {
       border: 1px solid var(--line);
@@ -388,16 +401,16 @@
                 <div id="itemTitle" class="text-xs muted mt-1">—</div>
               </div>
               <div class="flex flex-wrap gap-2 items-center">
-                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="prodRate" data-item="prodRate" checked>實際生產率</label>
-                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="diffAmt" data-item="diffAmt">差異金額</label>
-                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="scrapAmt" data-item="scrapAmt">報廢金額</label>
-                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="overuseAmt" data-item="overuseAmt">超用金額</label>
-                <label class="chip"><input class="mr-1" type="radio" name="itemMetric" value="refillQty" data-item="refillQty">補單量</label>
+                <label class="chip"><input type="radio" name="itemMetric" value="prodRate" data-item="prodRate" checked>實際生產率</label>
+                <label class="chip"><input type="radio" name="itemMetric" value="diffAmt" data-item="diffAmt">差異金額</label>
+                <label class="chip"><input type="radio" name="itemMetric" value="scrapAmt" data-item="scrapAmt">報廢金額</label>
+                <label class="chip"><input type="radio" name="itemMetric" value="overuseAmt" data-item="overuseAmt">超用金額</label>
+                <label class="chip"><input type="radio" name="itemMetric" value="refillQty" data-item="refillQty">補單量</label>
               </div>
             </div>
 
             <div class="card p-3">
-              <canvas id="itemChart" height="160"></canvas>
+              <canvas id="itemChart" height="260"></canvas>
             </div>
 
             <div class="table-wrap">
@@ -1603,6 +1616,8 @@ function renderSelectedItem() {
   $('itemTitle').textContent = `${title}（${start} ～ ${end}）`;
   $('itemPanel').classList.remove('hidden');
 
+  state.itemDaily = daily;
+
   renderItemChart(daily);
   renderDetailTable(daily);
 }
@@ -1967,6 +1982,27 @@ function syncModeUI() {
   $('dayWrap').classList.toggle('hidden', state.mode !== 'day');
   $('rangeWrap').classList.toggle('hidden', state.mode !== 'range');
 }
+
+
+function syncItemMetricChips() {
+  const inputs = Array.from(document.querySelectorAll('input[type=radio][name=itemMetric]'));
+  for (const input of inputs) {
+    const lab = input.closest('label.chip');
+    if (lab) lab.classList.toggle('active', !!input.checked);
+  }
+}
+
+function bindItemMetricRadios() {
+  const inputs = Array.from(document.querySelectorAll('input[type=radio][name=itemMetric]'));
+  for (const input of inputs) {
+    input.addEventListener('change', () => {
+      syncItemMetricChips();
+      if (state.itemDaily && state.itemDaily.length) renderItemChart(state.itemDaily);
+    });
+  }
+  syncItemMetricChips();
+}
+
 
 async function init(force=false) {
   try {
