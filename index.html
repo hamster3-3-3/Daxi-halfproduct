@@ -3270,6 +3270,10 @@ function renderAll() {
     halfRowsChart = filterByRange(state.halfDetails||[], ex.start, ex.end);
   }
   applyGroupFilterAndRender(halfRowsChart);
+  // If an item is selected, keep its daily trend/detail in sync with the current time range.
+  if (state.selectedKey) {
+    renderSelectedItem();
+  }
 }
 
 function renderKPIOnly() {
