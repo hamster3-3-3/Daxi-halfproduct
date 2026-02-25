@@ -842,6 +842,16 @@ const toast = (msg) => {
 // --- date/string helpers (避免 null.localeCompare、parseISO 未定義而中斷) ---
 function safeStr(x){ return (x===null || x===undefined) ? '' : String(x); }
 
+function num(v, def=0){
+  if(v==null || v==='') return def;
+  if(typeof v === 'number' && isFinite(v)) return v;
+  const s = String(v).replace(/[,\\s]/g,'').trim();
+  if(!s) return def;
+  const n = Number(s);
+  return isFinite(n) ? n : def;
+}
+
+
 function toISODate(v){
   if(!v) return null;
   if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
