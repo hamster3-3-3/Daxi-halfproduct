@@ -1569,8 +1569,17 @@ function monthKeyFromRangeKey(rangeKey, fileName){
 
 function parseTop20FromWB(wb, fileName){
   const fileYear = (safeStr(fileName).match(/(20\d{2})/)||[])[1] || null;
-  const mFileRange = safeStr(fileName).match(/(\d{4})\s*[-~～]\s*(\d{4})/);
-  const fileRangeKey = mFileRange ? (mFileRange[1] + '-' + mFileRange[2]) : null;
+  // fileRangeKey: derive MMDD-MMDD from filename like 20260210-0216 or 20251230-20260105
+  let fileRangeKey = null;
+  const fn = safeStr(fileName);
+  // pattern: YYYYMMDD- MMDD
+  let m = fn.match(/20\d{2}(\d{2})(\d{2})\s*[-~～]\s*(\d{2})(\d{2})/);
+  if (m) fileRangeKey = `${m[1]}${m[2]}-${m[3]}${m[4]}`;
+  // pattern: YYYYMMDD-YYYYMMDD
+  if (!fileRangeKey){
+    m = fn.match(/20\d{2}(\d{2})(\d{2})\s*[-~～]\s*20\d{2}(\d{2})(\d{2})/);
+    if (m) fileRangeKey = `${m[1]}${m[2]}-${m[3]}${m[4]}`;
+  }
   const out = [];
   for (const kind of ['scrap','over']){
     const sname = findTop20SheetName(wb, kind);
@@ -1640,8 +1649,12 @@ function parseTop20FromWB(wb, fileName){
     for (let r=dataStart; r<rows.length; r++){
       const row = rows[r]||[];
       const monthValRaw = (cMonth>=0) ? safeStr(row[cMonth]).trim() : "";
-      if (monthValRaw) lastMonthVal = monthValRaw;
-      const rangeKey = fileRangeKey || rangeKeyFromMonthCell(lastMonthVal) || null;
+      // Daxi sheets repeat header rows containing '月別'—do not let that overwrite the current range.
+      if (monthValRaw && monthValRaw !== '月別') lastMonthVal = monthValRaw;
+      const rkFromCell = normRangeKey(rangeKeyFromMonthCell(lastMonthVal));
+      const rangeKey = rkFromCell || (fileRangeKey ? normRangeKey(fileRangeKey) : null);
+
+      if(!rangeKey) continue;
 
       const semi = safeStr(row[cSemiName]).trim();
       const prodNote = safeStr(row[cNoteProd]).trim();
