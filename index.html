@@ -19,6 +19,24 @@ function normKey(s){
   s = s.replace(/[\(\)（）\[\]【】「」『』:：,，．。.、~～\-—–_]/g, "");
   return s;
 }
+
+
+function normRangeKey(s){
+  // Normalize week-range keys like '0113-0119', '0113~0119', '0113～0119', '0113—0119'
+  if(!s) return null;
+  const t = String(s);
+  const m = t.match(/\d{4}/g);
+  if(m && m.length>=2) return `${m[0]}-${m[1]}`;
+  // sometimes written as MM/DD-MM/DD
+  const mmdd = t.match(/(\d{1,2})\D+(\d{1,2})\D*(\d{1,2})\D+(\d{1,2})/);
+  if(mmdd){
+    const a = String(mmdd[1]).padStart(2,'0')+String(mmdd[2]).padStart(2,'0');
+    const b = String(mmdd[3]).padStart(2,'0')+String(mmdd[4]).padStart(2,'0');
+    return `${a}-${b}`;
+  }
+  return t.trim();
+}
+
 function cellMatchesAnyAlias(cellVal, aliases){
   const a = normKey(cellVal);
   if (!a) return false;
@@ -65,42 +83,14 @@ function rangeKeyFromMonthCell(v){
 
 
 function weekRangeKeyFromSelection(){
-  // Returns "MMDD-MMDD" for current selection.
-  // Week selector value may be:
-  // 1) "YYYY-MM-DD ~ YYYY-MM-DD"
-  // 2) "YYYY-MM-DD～YYYY-MM-DD"
-  // 3) "YYYY-MM-DD" (start date, Tue as start; end = +6 days)
-  let s = null, e = null;
-
-  if (state.mode === 'week'){
-    const v = safeStr(state.selection.weekStart).trim() || safeStr($('weekSel')?.value).trim();
-    if (!v) return null;
-
-    // split if contains range
-    if (v.includes('~') || v.includes('～')){
-      const parts = v.split(/~|～/).map(x=>x.trim()).filter(Boolean);
-      s = parts[0] || null;
-      e = parts[1] || null;
-    } else {
-      // treat as start date
-      s = v;
-      const ds = parseISO(s);
-      if (!(ds instanceof Date) || isNaN(ds)) return null;
-      // week is Tue->Mon, so +6
-      e = toISO(addDays(ds, 6));
-    }
-  } else if (state.mode === 'day' || state.mode === 'range'){
-    s = state.selection.start;
-    e = state.selection.end;
-  }
-
-  if (!s || !e) return null;
-  const ds = parseISO(s); const de = parseISO(e);
-  if (!(ds instanceof Date) || isNaN(ds) || !(de instanceof Date) || isNaN(de)) return null;
-
-  const a = String(ds.getMonth()+1).padStart(2,'0') + String(ds.getDate()).padStart(2,'0');
-  const b = String(de.getMonth()+1).padStart(2,'0') + String(de.getDate()).padStart(2,'0');
-  return a + '-' + b;
+  // Use MMDD-MMDD to match Daxi Top20 sheets (left column shows week ranges like 0127-0202)
+  const w = state.weekValue || '';
+  // state.weekValue format: 'YYYY-MM-DD~YYYY-MM-DD'
+  const m = w.match(/(\d{4})-(\d{2})-(\d{2}).*?(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return null;
+  const a = `${m[2]}${m[3]}`;
+  const b = `${m[5]}${m[6]}`;
+  return `${a}-${b}`;
 }
 
 
@@ -148,12 +138,12 @@ function makeTop20DupSetByRange(rangeKey, kind){
 }
 
 function rangeKeyTouchesMonth(rangeKey, monthKey){
-  // rangeKey: MMDD-MMDD ; monthKey: YYYY-MM
+  // rangeKey: normRangeKey(MMDD-MMDD ; monthKey: YYYY-MM
   if (!rangeKey || !monthKey) return false;
   const m = Number(monthKey.split('-')[1]);
   const parts = String(rangeKey).split('-');
   if (parts.length !== 2) return false;
-  const a = parts[0], b = parts[1];
+  const a = parts[0]), b = parts[1];
   if (a.length !== 4 || b.length !== 4) return false;
   const sm = Number(a.slice(0,2));
   const em = Number(b.slice(0,2));
@@ -167,11 +157,11 @@ function rangeKeyTouchesMonth(rangeKey, monthKey){
 
 
 function rangeKeyToDates(year, rangeKey){
-  // rangeKey: "MMDD-MMDD"
+  // rangeKey: normRangeKey("MMDD-MMDD"
   if (!year || !rangeKey) return null;
   const parts = String(rangeKey).split('-');
   if (parts.length !== 2) return null;
-  const a = parts[0], b = parts[1];
+  const a = parts[0]), b = parts[1];
   if (a.length !== 4 || b.length !== 4) return null;
   const sm = Number(a.slice(0,2)), sd = Number(a.slice(2,4));
   const em = Number(b.slice(0,2)), ed = Number(b.slice(2,4));
@@ -1727,7 +1717,7 @@ function openTop20ExpandForReason(reasonKey){
   state._top20Modal.prevMonthKey = prevMonthKeyFromISO(endISO);
 
   
-  state._top20Modal.rangeKey = (state.mode==='week') ? (weekRangeKeyFromSelection()||null) : null;
+  state._top20Modal.rangeKey = (state.mode==='week') ? (normRangeKey(weekRangeKeyFromSelection())||null) : null;
 $('top20Title').textContent = `前二十大原因｜${reasonKey}`;
   $('top20Subtitle').textContent = (state.mode==='week' && state._top20Modal.rangeKey)
     ? `週別：${state._top20Modal.rangeKey}（重複判定比對：${state._top20Modal.prevMonthKey || '-'}）`
@@ -1771,7 +1761,7 @@ function renderTop20Modal(){
     if (r.kind!==kind) return false;
     if (normKey(r.reason)!==normKey(reasonKey)) return false;
     // Daxi weekly sheets label the left '月別' as a week range (e.g., 0210-0216). Use exact match in week mode.
-    if (state.mode==='week' && st.rangeKey) return r.rangeKey===st.rangeKey;
+    if (state.mode==='week' && st.rangeKey) return normRangeKey(r.rangeKey)===normRangeKey(st.rangeKey);
     return r.monthKey===monthKey;
   });
   const dupSet = prevKey ? makeTop20DupSet(prevKey, kind) : new Set();
