@@ -795,6 +795,7 @@ const state = {
   loaded: false,
   summary: [],
   details: [],
+  halfDetails: [],
   dateMin: null,
   dateMax: null,
   years: [],
@@ -840,6 +841,26 @@ const toast = (msg) => {
 
 // --- date/string helpers (避免 null.localeCompare、parseISO 未定義而中斷) ---
 function safeStr(x){ return (x===null || x===undefined) ? '' : String(x); }
+
+function toISODate(v){
+  if(!v) return null;
+  if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  // Excel serial
+  if (typeof v === 'number' && isFinite(v)) {
+    const d = XLSX.SSF.parse_date_code(v);
+    if(d) return new Date(Date.UTC(d.y, d.m-1, d.d)).toISOString().slice(0,10);
+  }
+  const s = String(v).trim();
+  const m = s.match(/(20\d{2})\D(\d{1,2})\D(\d{1,2})/);
+  if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  const m2 = s.match(/(\d{1,2})\/(\d{1,2})/);
+  if(m2 && state && state.selection && state.selection.year){
+    const y = state.selection.year;
+    return `${y}-${String(m2[1]).padStart(2,'0')}-${String(m2[2]).padStart(2,'0')}`;
+  }
+  return null;
+}
+
 function safeLocaleCompare(a,b){ return safeStr(a).localeCompare(safeStr(b)); }
 
 // --- helpers for details parsing ---
@@ -2041,6 +2062,75 @@ function parseDetailsFromWB(wb, fileNameOrMeta) {
 }
 
 
+function parseHalfDetailsFromWB(wb, fileName){
+  // Use 合計 sheet (e.g., '01-31合計') to power 半成品展開 for Daxi.
+  const out = [];
+  const sheetNames = (wb.SheetNames||[]).map(s=>String(s||''));
+  const sumSheets = sheetNames.filter(s => s.replace(/\s+/g,'').includes('合計'));
+  if(!sumSheets.length) return out;
+
+  for(const snameRaw of sumSheets){
+    const sname = snameRaw;
+    const ws = wb.Sheets[sname];
+    if(!ws) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
+    if(rows.length<3) continue;
+
+    // header at row index 1
+    const hdr = (rows[1]||[]).map(x=>safeStr(x).trim());
+    const idx = (h)=>hdr.findIndex(x=>x===h);
+    const cDate = 0; // first column holds a date (even if header shows '序號')
+    const cProduct = idx('商品名稱')>=0 ? idx('商品名稱') : 1;
+    const cSemi = idx('半成品名稱')>=0 ? idx('半成品名稱') : 2;
+    const cUnitPrice = idx('單價')>=0 ? idx('單價') : 3;
+    const cOrder = idx('訂單量')>=0 ? idx('訂單量') : 4;
+    const cOutput = idx('出料量')>=0 ? idx('出料量') : 5;
+    const cRefill = idx('補單量')>=0 ? idx('補單量') : 7;
+    const cDiffAmt = hdr.findIndex(x=>x.includes('差異量') && x.includes('金額'));
+    const cScrapAmt = hdr.findIndex(x=>x.includes('報廢量') && x.includes('金額'));
+    const cOverAmt = hdr.findIndex(x=>x.includes('超用量') && x.includes('金額'));
+
+    for(let r=2;r<rows.length;r++){
+      const row = rows[r]||[];
+      const dv = row[cDate];
+      const date = toISODate(dv);
+      if(!date) continue;
+
+      const product = safeStr(row[cProduct]).trim();
+      const semi = safeStr(row[cSemi]).trim();
+      if(!product && !semi) continue;
+
+      const unitPrice = num(row[cUnitPrice]);
+      const order = num(row[cOrder]);
+      const output = num(row[cOutput]);
+      const refillQty = num(row[cRefill]);
+      const diffAmt = cDiffAmt>=0 ? num(row[cDiffAmt]) : null;
+      const scrapAmt = cScrapAmt>=0 ? num(row[cScrapAmt]) : null;
+      const overuseAmt = cOverAmt>=0 ? num(row[cOverAmt]) : null;
+
+      const prodRate = (order>0 && output!=null) ? (output/order) : null;
+
+      out.push({
+        date,
+        product,
+        semi,
+        unitPrice,
+        order,
+        output,
+        refillQty,
+        prodRate,
+        diffAmt: diffAmt ?? 0,
+        scrapAmt: scrapAmt ?? 0,
+        overuseAmt: overuseAmt ?? 0
+      });
+    }
+  }
+
+  return out;
+}
+
+
+
 
 // =========================
 // 原因別分析（生產管理報表 7-1 週）解析
@@ -2218,6 +2308,28 @@ function parseReasonFromWB(wb, fileName){
 
 
 
+
+function mergeTop20Entries(entries){
+  // Merge duplicates caused by overlapping files or separated info blocks.
+  const m = new Map();
+  for(const e of (entries||[])){
+    if(!e) continue;
+    const k = [e.kind, e.rangeKey||'', normKey(e.semi||''), String(e.unitPrice||''), String(e.amt||''), String(e.diffAmt||'')].join('|');
+    if(!m.has(k)){
+      m.set(k, {...e});
+    }else{
+      const cur = m.get(k);
+      // keep first non-empty fields
+      for(const f of ['reason','strategy','category','noteProduct','product']){
+        if(!cur[f] && e[f]) cur[f]=e[f];
+      }
+      // keep max count
+      if((e.times||0)>(cur.times||0)) cur.times=e.times;
+    }
+  }
+  return Array.from(m.values());
+}
+
 async function loadAllData() {
   $('dataStatus').innerHTML = '<span class="loader"></span> 載入中...';
   $('dataStatus').classList.remove('chip');
@@ -2248,6 +2360,7 @@ async function loadAllData() {
   const loadErrors = [];
   let sum = [];
   let det = [];
+  let halfDet = [];
   let reasons = [];
   let top20 = [];
 
@@ -2261,6 +2374,7 @@ async function loadAllData() {
       const wb = XLSX.read(ab, {type:'array', cellDates:true});
       sum = sum.concat(parseSummaryFromWB(wb, f));
       det = det.concat(parseDetailsFromWB(wb, f));
+      halfDet = halfDet.concat(parseHalfDetailsFromWB(wb, f));
     }catch(e){
       console.warn(e);
       loadErrors.push(f);
@@ -2288,6 +2402,7 @@ async function loadAllData() {
   for (const r of sum) m.set(r.date, r);
   state.summary = Array.from(m.values()).sort((a,b)=>safeLocaleCompare(a.date,b.date));
   state.details = det.sort((a,b)=>safeLocaleCompare(a.date,b.date));
+  state.halfDetails = halfDet.sort((a,b)=>safeLocaleCompare(a.date,b.date));
 
   // 原因別分析：同一檔內同一週同一原因可能重複，做 (start,end,reason,source) 去重
   const rm = new Map();
@@ -2298,8 +2413,8 @@ async function loadAllData() {
   }
   state.reasonWeeks = Array.from(rm.values());
 
-  // Top20 原因別分析（保留全部，重複次數判定要用）
-  state.top20Entries = top20;
+  // Top20 原因別分析（合併重複列，並保留重複次數判定需要的欄位）
+  state.top20Entries = mergeTop20Entries(top20);
 
   if (!state.summary.length) throw new Error('未解析到日別報廢率總表資料');
   state.dateMin = state.summary[0].date;
@@ -3138,7 +3253,13 @@ function renderAll() {
   bindReasonCardClicks();
   renderKPIChart(srowsChart, start, end);
   renderRightChart(srowsChart, start, end);
-  applyGroupFilterAndRender(drowsChart);
+    // 半成品展開：以 報廢管理表(合計) 資料為主
+  let halfRowsChart = filterByRange(state.halfDetails||[], start, end);
+  if (state.mode === 'month') {
+    const ex = expandToWholeWeeks(start, end);
+    halfRowsChart = filterByRange(state.halfDetails||[], ex.start, ex.end);
+  }
+  applyGroupFilterAndRender(halfRowsChart);
 }
 
 function renderKPIOnly() {
