@@ -584,7 +584,7 @@ function fallbackScanAmountRight(sheet, r, c){
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="reasonCards">
         <div class="card p-4">
-          <div class="kpi-card-title">展開量高於105%</div>
+          <div class="kpi-card-title">展開量高於需求量</div>
           <div class="subval mt-2">報廢：<span id="r_above105_scrap_amt" class="mono">—</span>（<span id="r_above105_scrap_pct" class="mono">—</span>）</div>
           <div class="subval">超用：<span id="r_above105_over_amt" class="mono">—</span>（<span id="r_above105_over_pct" class="mono">—</span>）</div>
         </div>
@@ -1726,8 +1726,12 @@ function openTop20ExpandForReason(reasonKey){
   state._top20Modal.monthKey = monthKey;
   state._top20Modal.prevMonthKey = prevMonthKeyFromISO(endISO);
 
-  $('top20Title').textContent = `前二十大原因｜${reasonKey}`;
-  $('top20Subtitle').textContent = `月份：${monthKey}（重複判定比對：${state._top20Modal.prevMonthKey || '-'}）`;
+  
+  state._top20Modal.rangeKey = (state.mode==='week') ? (weekRangeKeyFromSelection()||null) : null;
+$('top20Title').textContent = `前二十大原因｜${reasonKey}`;
+  $('top20Subtitle').textContent = (state.mode==='week' && state._top20Modal.rangeKey)
+    ? `週別：${state._top20Modal.rangeKey}（重複判定比對：${state._top20Modal.prevMonthKey || '-'}）`
+    : `月份：${monthKey}（重複判定比對：${state._top20Modal.prevMonthKey || '-'}）`;
 
   // tab styles
   $('top20TabScrap').onclick = () => { state._top20Modal.kind='scrap'; renderTop20Modal(); };
@@ -1763,7 +1767,13 @@ function renderTop20Modal(){
   if (kind==='scrap'){ bS.className='px-3 py-1 rounded-full bg-slate-900 text-white'; bO.className='px-3 py-1 rounded-full text-slate-700 hover:bg-white'; $('top20AmtHeader').textContent='報廢金額'; }
   else { bO.className='px-3 py-1 rounded-full bg-slate-900 text-white'; bS.className='px-3 py-1 rounded-full text-slate-700 hover:bg-white'; $('top20AmtHeader').textContent='超用金額'; }
 
-  const rows = (state.top20Entries||[]).filter(r => r.kind===kind && r.monthKey===monthKey && normKey(r.reason)===normKey(reasonKey));
+  const rows = (state.top20Entries||[]).filter(r => {
+    if (r.kind!==kind) return false;
+    if (normKey(r.reason)!==normKey(reasonKey)) return false;
+    // Daxi weekly sheets label the left '月別' as a week range (e.g., 0210-0216). Use exact match in week mode.
+    if (state.mode==='week' && st.rangeKey) return r.rangeKey===st.rangeKey;
+    return r.monthKey===monthKey;
+  });
   const dupSet = prevKey ? makeTop20DupSet(prevKey, kind) : new Set();
 
   const tbody = $('top20Body');
@@ -2035,7 +2045,7 @@ function parseDetailsFromWB(wb, fileNameOrMeta) {
 // - 以 (週起-週迄, 原因) 作為 key
 // =========================
 const REASON_DEFS = [
-  { key:'above105',   label:'展開量高於105%',  tokens:['展開量高於105','展開量高於１０5','展開量高於105%','展開量高於105％'] },
+  { key:'above105',   label:'展開量高於需求量',  tokens:['展開量高於需求量','展開量高於需求','展開量高於105','展開量高於105%','展開量高於105％'] },
   { key:'tooMuch',    label:'調理多產',        tokens:['調理多產'] },
   { key:'process',    label:'製程不穩',        tokens:['製程不穩','製程不穩定'] },
   { key:'sample',     label:'取樣不穩',        tokens:['取樣不穩','取樣不穩定'] },
@@ -2178,7 +2188,7 @@ function parseReasonFromWB(wb, fileName){
   const cols = [5,7,9,11];
 
   const labels = [
-    '展開量高於105%', '調理多產', '製程不穩', '取樣不穩',
+    '展開量高於需求量', '調理多產', '製程不穩', '取樣不穩',
     '原物料規格', '研發設定', '其他原因', '步留不足'
   ];
 
