@@ -3301,11 +3301,11 @@ function renderSelectedItem() {
   }
 
   // 表格：維持嚴格月份區間
-  const drowsBase = filterByRange(state.details, start, end)
+  const drowsBase = filterByRange(state.halfDetails || state.details, start, end)
     .filter(r => (r.product + '||' + r.semi) === state.selectedKey);
 
   // 趨勢圖：使用擴展後區間
-  const drowsChart = filterByRange(state.details, chartStart, chartEnd)
+  const drowsChart = filterByRange(state.halfDetails || state.details, chartStart, chartEnd)
     .filter(r => (r.product + '||' + r.semi) === state.selectedKey);
   if (!drowsBase.length && !drowsChart.length) {
     $('itemPanel').classList.add('hidden');
@@ -3599,12 +3599,12 @@ function renderDetailTable(daily) {
       <td class="muted">${r.semi}</td>
       <td class="text-right mono">${fmtInt(r.order)}</td>
       <td class="text-right mono">${fmtInt(r.output)}</td>
-      <td class="text-right mono">${fmtInt(r.refill)}</td>
-      <td class="text-right mono">${r.price==null?'—':fmtMoney(r.price).replace('NT$ ','')}</td>
+      <td class="text-right mono">${fmtInt((r.refill!=null?r.refill:r.refillQty))}</td>
+      <td class="text-right mono">${(r.price!=null?r.price:r.unitPrice)==null?'—':fmtMoney((r.price!=null?r.price:r.unitPrice)).replace('NT$ ','')}</td>
       <td class="text-right mono">${r.prodRate==null?'—':fmtPct(r.prodRate)}</td>
-      <td class="text-right mono">${fmtInt(r.diffQty)}</td>
+      <td class="text-right mono">${fmtInt(r.diffQty!=null?r.diffQty:0)}</td>
       <td class="text-right mono">${fmtMoney(r.diffAmt)}</td>
-      <td class="text-right mono">${fmtInt(r.scrapQty)}</td>
+      <td class="text-right mono">${fmtInt(r.scrapQty!=null?r.scrapQty:0)}</td>
       <td class="text-right mono">${fmtMoney(r.scrapAmt)}</td>
       <td class="text-right mono">${r.overuseQty==null?'—':(r.overuseQty.toFixed(2))}</td>
       <td class="text-right mono">${fmtMoney(r.overuseAmt)}</td>
