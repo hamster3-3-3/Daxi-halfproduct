@@ -143,7 +143,7 @@ function rangeKeyTouchesMonth(rangeKey, monthKey){
   const m = Number(monthKey.split('-')[1]);
   const parts = String(rangeKey).split('-');
   if (parts.length !== 2) return false;
-  const a = parts[0]), b = parts[1];
+  const a = parts[0], b = parts[1];
   if (a.length !== 4 || b.length !== 4) return false;
   const sm = Number(a.slice(0,2));
   const em = Number(b.slice(0,2));
@@ -161,7 +161,7 @@ function rangeKeyToDates(year, rangeKey){
   if (!year || !rangeKey) return null;
   const parts = String(rangeKey).split('-');
   if (parts.length !== 2) return null;
-  const a = parts[0]), b = parts[1];
+  const a = parts[0], b = parts[1];
   if (a.length !== 4 || b.length !== 4) return null;
   const sm = Number(a.slice(0,2)), sd = Number(a.slice(2,4));
   const em = Number(b.slice(0,2)), ed = Number(b.slice(2,4));
