@@ -2076,7 +2076,7 @@ function parseDetailsFromWB(wb, fileNameOrMeta) {
 
 
 function parseHalfDetailsFromWB(wb, fileName){
-  // Use 合計 sheet (e.g., '01-31合計') to power 半成品展開 for Daxi.
+  // Use 合計 sheet (e.g., '01-31合計') to power 半成品展開 / 日別明細 for Daxi.
   const out = [];
   const sheetNames = (wb.SheetNames||[]).map(s=>String(s||''));
   const sumSheets = sheetNames.filter(s => s.replace(/\s+/g,'').includes('合計'));
@@ -2087,54 +2087,83 @@ function parseHalfDetailsFromWB(wb, fileName){
     const ws = wb.Sheets[sname];
     if(!ws) continue;
     const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
-    if(rows.length<3) continue;
+    if(rows.length < 3) continue;
 
-    // header at row index 1
-    const hdr = (rows[1]||[]).map(x=>safeStr(x).trim());
-    const idx = (h)=>hdr.findIndex(x=>x===h);
-    const cDate = 0; // first column holds a date (even if header shows '序號')
-    const cProduct = idx('商品名稱')>=0 ? idx('商品名稱') : 1;
-    const cSemi = idx('半成品名稱')>=0 ? idx('半成品名稱') : 2;
-    const cUnitPrice = idx('單價')>=0 ? idx('單價') : 3;
-    const cOrder = idx('訂單量')>=0 ? idx('訂單量') : 4;
-    const cOutput = idx('出料量')>=0 ? idx('出料量') : 5;
-    const cRefill = idx('補單量')>=0 ? idx('補單量') : 7;
-    const cDiffAmt = hdr.findIndex(x=>x.includes('差異量') && x.includes('金額'));
-    const cScrapAmt = hdr.findIndex(x=>x.includes('報廢量') && x.includes('金額'));
-    const cOverAmt = hdr.findIndex(x=>x.includes('超用量') && x.includes('金額'));
+    // header at row index 1 for sheets like 01-31合計
+    const hdrRaw = (rows[1] || []).map(x => safeStr(x).trim());
+    const hdr = hdrRaw.map(x => normalizeHeader(x));
+    const findCol = (...names) => {
+      const wants = names.map(x => normalizeHeader(x));
+      for(let i=0;i<hdr.length;i++){
+        if (wants.includes(hdr[i])) return i;
+      }
+      return -1;
+    };
+    const findContains = (...tokens) => {
+      const wants = tokens.map(x => normalizeHeader(x));
+      for(let i=0;i<hdr.length;i++){
+        const h = hdr[i] || '';
+        if (!h) continue;
+        if (wants.every(t => h.includes(t))) return i;
+      }
+      return -1;
+    };
+
+    const cDate      = 0; // first column holds date even if header shows 序號
+    const cProduct   = findCol('商品名稱','商品名','品名') >= 0 ? findCol('商品名稱','商品名','品名') : 1;
+    const cSemi      = findCol('半成品名稱','半成品名','半成品') >= 0 ? findCol('半成品名稱','半成品名','半成品') : 2;
+    const cUnitPrice = findCol('單價') >= 0 ? findCol('單價') : 3;
+    const cOrder     = findCol('訂單量') >= 0 ? findCol('訂單量') : 4;
+    const cOutput    = findCol('出料量','實際產出') >= 0 ? findCol('出料量','實際產出') : 5;
+    const cRefill    = findCol('補單量','補單') >= 0 ? findCol('補單量','補單') : 7;
+    const cDiffQty   = findCol('差異量') >= 0 ? findCol('差異量') : 11;
+    const cDiffAmt   = findContains('差異量','金額');
+    const cScrapQty  = findCol('報廢量') >= 0 ? findCol('報廢量') : 13;
+    const cScrapAmt  = findContains('報廢量','金額');
+    const cOverAmt   = findContains('超用量','金額');
 
     for(let r=2;r<rows.length;r++){
-      const row = rows[r]||[];
-      const dv = row[cDate];
-      const date = toISODate(dv);
+      const row = rows[r] || [];
+      const date = toISODate(row[cDate]);
       if(!date) continue;
 
       const product = safeStr(row[cProduct]).trim();
       const semi = safeStr(row[cSemi]).trim();
       if(!product && !semi) continue;
 
-      const unitPrice = num(row[cUnitPrice]);
-      const order = num(row[cOrder]);
-      const output = num(row[cOutput]);
-      const refillQty = num(row[cRefill]);
-      const diffAmt = cDiffAmt>=0 ? num(row[cDiffAmt]) : null;
-      const scrapAmt = cScrapAmt>=0 ? num(row[cScrapAmt]) : null;
-      const overuseAmt = cOverAmt>=0 ? num(row[cOverAmt]) : null;
+      const unitPrice  = num(row[cUnitPrice], null);
+      const order      = num(row[cOrder], 0);
+      const output     = num(row[cOutput], 0);
+      const refillQty  = cRefill >= 0 ? num(row[cRefill], 0) : 0;
+      const diffQty    = cDiffQty >= 0 ? num(row[cDiffQty], 0) : 0;
+      const diffAmt    = cDiffAmt >= 0 ? num(row[cDiffAmt], 0) : 0;
+      const scrapQty   = cScrapQty >= 0 ? num(row[cScrapQty], 0) : 0;
+      const scrapAmt   = cScrapAmt >= 0 ? num(row[cScrapAmt], 0) : 0;
+      const overuseAmt = cOverAmt >= 0 ? num(row[cOverAmt], 0) : 0;
 
-      const prodRate = (order>0 && output!=null) ? (output/order) : null;
+      const prodRate = (order > 0 && Number.isFinite(output)) ? (output / order) : null;
+      const overuseQty = (Number.isFinite(unitPrice) && unitPrice > 0 && Number.isFinite(overuseAmt))
+        ? (overuseAmt / unitPrice)
+        : null;
 
       out.push({
         date,
         product,
         semi,
         unitPrice,
+        price: unitPrice,      // alias for downstream renderers
         order,
         output,
+        outQty: output,
         refillQty,
+        refill: refillQty,     // alias for downstream renderers
         prodRate,
-        diffAmt: diffAmt ?? 0,
-        scrapAmt: scrapAmt ?? 0,
-        overuseAmt: overuseAmt ?? 0
+        diffQty,
+        diffAmt,
+        scrapQty,
+        scrapAmt,
+        overuseQty,
+        overuseAmt
       });
     }
   }
@@ -3307,81 +3336,97 @@ function renderSelectedItem() {
     chartEnd = ex.end;
   }
 
+  const sourceRows = (Array.isArray(state.halfDetails) && state.halfDetails.length)
+    ? state.halfDetails
+    : state.details;
+
   // 表格：維持嚴格月份區間
-  const drowsBase = filterByRange(state.halfDetails || state.details, start, end)
+  const drowsBase = filterByRange(sourceRows, start, end)
     .filter(r => (r.product + '||' + r.semi) === state.selectedKey);
 
   // 趨勢圖：使用擴展後區間
-  const drowsChart = filterByRange(state.halfDetails || state.details, chartStart, chartEnd)
+  const drowsChart = filterByRange(sourceRows, chartStart, chartEnd)
     .filter(r => (r.product + '||' + r.semi) === state.selectedKey);
+
   if (!drowsBase.length && !drowsChart.length) {
     $('itemPanel').classList.add('hidden');
     return;
   }
 
-  // aggregate by date
-  const m = new Map();
-  for (const r of drowsChart) {
-    if (!m.has(r.date)) m.set(r.date, {
-      date: r.date,
-      product: r.product,
-      semi: r.semi,
-      order: 0, output: 0, refill: 0,
-      priceSum: 0, priceN: 0,
-      diffQty: 0, diffAmt: 0,
-      scrapQty: 0, scrapAmt: 0,
-      overuseAmt: 0
-    });
-    const o = m.get(r.date);
-    o.order += Number(r.order)||0;
-    o.output += Number(r.output)||0;
-    o.refill += Number(r.refill)||0;
-    if (Number.isFinite(r.price) && r.price>0) { o.priceSum += r.price; o.priceN += 1; }
-    o.diffQty += Number(r.diffQty)||0;
-    o.diffAmt += Number(r.diffAmt)||0;
-    o.scrapQty += Number(r.scrapQty)||0;
-    o.scrapAmt += Number(r.scrapAmt)||0;
-    o.overuseAmt += Number(r.overuseAmt)||0;
-  }
-  const daily = Array.from(m.values()).sort((a,b)=>safeLocaleCompare(a.date,b.date));
-  for (const o of daily) {
-    o.price = o.priceN ? (o.priceSum / o.priceN) : null;
-    o.prodRate = o.order>0 ? (o.output / o.order) : null;
-    o.overuseQty = (o.price && o.price>0) ? (o.overuseAmt / o.price) : null;
-  }
+  const firstNum = (...vals) => {
+    for (const v of vals) {
+      if (v === null || v === undefined || v === '') continue;
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  };
+
+  const aggregateDailyRows = (rows) => {
+    const map = new Map();
+    for (const r of rows) {
+      if (!map.has(r.date)) {
+        map.set(r.date, {
+          date: r.date,
+          product: r.product,
+          semi: r.semi,
+          order: 0,
+          output: 0,
+          refill: 0,
+          priceSum: 0,
+          priceN: 0,
+          diffQty: 0,
+          diffAmt: 0,
+          scrapQty: 0,
+          scrapAmt: 0,
+          overuseQty: 0,
+          overuseQtyHasDirect: false,
+          overuseAmt: 0
+        });
+      }
+      const o = map.get(r.date);
+
+      o.order += firstNum(r.order) || 0;
+      o.output += firstNum(r.output, r.outQty) || 0;
+      o.refill += firstNum(r.refill, r.refillQty) || 0;
+
+      const price = firstNum(r.price, r.unitPrice);
+      if (price != null && price > 0) {
+        o.priceSum += price;
+        o.priceN += 1;
+      }
+
+      o.diffQty += firstNum(r.diffQty) || 0;
+      o.diffAmt += firstNum(r.diffAmt) || 0;
+      o.scrapQty += firstNum(r.scrapQty) || 0;
+      o.scrapAmt += firstNum(r.scrapAmt) || 0;
+
+      const overQty = firstNum(r.overuseQty);
+      if (overQty != null) {
+        o.overuseQty += overQty;
+        o.overuseQtyHasDirect = true;
+      }
+      o.overuseAmt += firstNum(r.overuseAmt) || 0;
+    }
+
+    const daily = Array.from(map.values()).sort((a,b)=>safeLocaleCompare(a.date,b.date));
+    for (const o of daily) {
+      o.price = o.priceN ? (o.priceSum / o.priceN) : null;
+      o.prodRate = o.order > 0 ? (o.output / o.order) : null;
+      if (!o.overuseQtyHasDirect) {
+        o.overuseQty = (o.price && o.price > 0) ? (o.overuseAmt / o.price) : null;
+      }
+      delete o.priceSum;
+      delete o.priceN;
+      delete o.overuseQtyHasDirect;
+    }
+    return daily;
+  };
+
+  const daily = aggregateDailyRows(drowsChart);
   state.selectedDaily = daily;
 
-  // base daily for table (strict selected range)
-  const mBase = new Map();
-  for (const r of drowsBase) {
-    if (!mBase.has(r.date)) mBase.set(r.date, {
-      date: r.date,
-      product: r.product,
-      semi: r.semi,
-      order: 0, output: 0, refill: 0,
-      priceSum: 0, priceN: 0,
-      diffQty: 0, diffAmt: 0,
-      scrapQty: 0, scrapAmt: 0,
-      overuseAmt: 0
-    });
-    const o = mBase.get(r.date);
-    o.order += Number(r.order)||0;
-    o.output += Number(r.output)||0;
-    o.refill += Number(r.refill)||0;
-    if (Number.isFinite(r.price) && r.price>0) { o.priceSum += r.price; o.priceN += 1; }
-    o.diffQty += Number(r.diffQty)||0;
-    o.diffAmt += Number(r.diffAmt)||0;
-    o.scrapQty += Number(r.scrapQty)||0;
-    o.scrapAmt += Number(r.scrapAmt)||0;
-    o.overuseAmt += Number(r.overuseAmt)||0;
-  }
-  const dailyBase = Array.from(mBase.values()).sort((a,b)=>safeLocaleCompare(a.date,b.date));
-  for (const o of dailyBase) {
-    o.price = o.priceN ? (o.priceSum / o.priceN) : null;
-    o.prodRate = o.order>0 ? (o.output / o.order) : null;
-    o.overuseQty = (o.price && o.price>0) ? (o.overuseAmt / o.price) : null;
-  }
-
+  const dailyBase = aggregateDailyRows(drowsBase);
 
   const title = daily[0].product + '｜' + daily[0].semi;
   $('itemTitle').textContent = `${title}（${start} ～ ${end}）`;
