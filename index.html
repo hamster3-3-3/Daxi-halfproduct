@@ -1278,6 +1278,70 @@ async function loadManifest() {
   return [];
 }
 
+
+// ---------------- 載入速度優化：初始僅讀取最近三個月 ----------------
+const RECENT_LOAD_MONTHS = 3;
+
+function manifestMonthIndexFromPath(path){
+  const s = safeStr(path);
+  const n = baseName(s);
+
+  // 最優先使用 manifest 路徑中的 YYYY/MM 資料夾，例如 2026/05/xxx.xlsx
+  let m = s.match(/(?:^|\/)(20\d{2})\/(\d{1,2})(?=\/)/);
+  if (m) return Number(m[1]) * 12 + Number(m[2]);
+
+  // 半成品報廢管理表：115.05.01-31...（民國年）
+  m = n.match(/(?:^|[^\d])(1\d{2})[.\-_/](\d{1,2})[.\-_/](\d{1,2})/);
+  if (m) return (1911 + Number(m[1])) * 12 + Number(m[2]);
+
+  // JFM 週檔：20260519-0525、20260519-20260525
+  m = n.match(/(20\d{2})(\d{2})(\d{2})\s*[-~～]\s*(?:20\d{2})?\d{2}\d{2}/);
+  if (m) return Number(m[1]) * 12 + Number(m[2]);
+
+  // JFM 週檔：2026.0519-0525、2026-0519-0525
+  m = n.match(/(20\d{2})[.\-_](\d{2})(\d{2})\s*[-~～]/);
+  if (m) return Number(m[1]) * 12 + Number(m[2]);
+
+  // JFM 月檔：2026.05.xlsx、2026-05.xlsx
+  m = n.match(/(20\d{2})[.\-_/](\d{1,2})(?!\d)/);
+  if (m) return Number(m[1]) * 12 + Number(m[2]);
+
+  return null;
+}
+
+function manifestMonthKeyFromIndex(idx){
+  if (!Number.isFinite(Number(idx))) return null;
+  const y = Math.floor(Number(idx) / 12);
+  const m = Number(idx) - y * 12;
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+
+function pickRecentManifestFiles(files, monthWindow = RECENT_LOAD_MONTHS){
+  const all = Array.isArray(files) ? files : [];
+  const targets = all.filter(f => isWasteFile(f) || isJfmFile(f));
+  const monthIdxs = targets
+    .map(f => manifestMonthIndexFromPath(f))
+    .filter(v => Number.isFinite(Number(v)) && Number(v) > 0);
+
+  if (!monthIdxs.length) {
+    return { files: all.slice(), startIdx:null, endIdx:null, monthKeys:[], totalTargetCount:targets.length, limited:false };
+  }
+
+  const endIdx = Math.max(...monthIdxs.map(Number));
+  const startIdx = endIdx - Math.max(1, Number(monthWindow)||RECENT_LOAD_MONTHS) + 1;
+  const monthKeys = [];
+  for (let i=startIdx; i<=endIdx; i++) monthKeys.push(manifestMonthKeyFromIndex(i));
+
+  // 只保留最近三個月內的報廢管理表 / JFM 檔；其他非目標檔案不影響主解析，直接略過。
+  const picked = targets.filter(f => {
+    const idx = manifestMonthIndexFromPath(f);
+    return Number.isFinite(Number(idx)) && Number(idx) >= startIdx && Number(idx) <= endIdx;
+  });
+
+  return { files:picked, startIdx, endIdx, monthKeys, totalTargetCount:targets.length, limited:true };
+}
+// ------------------------------------------------------------
+
 // ---------------- JFM 檔名索引（週別 / 月別） ----------------
 function baseName(p){ return String(p || '').split('/').pop(); }
 
@@ -2479,10 +2543,14 @@ async function loadAllData() {
 
   const files = await loadManifest();
   if (!files.length) throw new Error('manifest 無任何檔案');
-  state.manifestFiles = files.slice();
+  const recentPick = pickRecentManifestFiles(files, RECENT_LOAD_MONTHS);
+  const filesForLoad = recentPick.files.length ? recentPick.files : files.slice();
+  state.manifestAllFiles = files.slice();
+  state.manifestFiles = filesForLoad.slice();
+  state.manifestRecentPick = recentPick;
 
-  const wasteFiles = files.filter(isWasteFile);
-  const jfmFiles = files.filter(isJfmFile);
+  const wasteFiles = filesForLoad.filter(isWasteFile);
+  const jfmFiles = filesForLoad.filter(isJfmFile);
   state.jfmIndex = buildJfmIndex(jfmFiles);
 
   const loadErrors = [];
@@ -2554,7 +2622,9 @@ async function loadAllData() {
   // status
   const okCount = wasteFiles.length + jfmFiles.length - loadErrors.length;
   const totalCount = wasteFiles.length + jfmFiles.length;
-  $('dataStatus').textContent = `已載入 ${okCount}/${totalCount} 份檔案（報廢管理表:${wasteFiles.length}、JFM:${jfmFiles.length}）`;
+  const allTargetCount = recentPick.totalTargetCount || totalCount;
+  const monthLabel = (recentPick.monthKeys || []).map(k => `${Number(k.slice(5,7))}月`).join('、');
+  $('dataStatus').textContent = `已優先載入最近${RECENT_LOAD_MONTHS}個月 ${okCount}/${totalCount} 份檔案（${monthLabel || '依檔案日期'}；全部可用:${allTargetCount}；報廢管理表:${wasteFiles.length}、JFM:${jfmFiles.length}）`;
   if (loadErrors.length){
     console.warn('讀取失敗清單：', loadErrors);
     toast(`注意：有 ${loadErrors.length} 份檔案讀取失敗（已略過）`);
