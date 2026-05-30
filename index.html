@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+Q<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
@@ -3316,6 +3316,7 @@ function aggregateGroups(drows) {
 }
 
 function applyGroupFilterAndRender(drows) {
+  state._forceMayGroupLayout = isMay2026OrLaterRange() || (Array.isArray(drows) && drows.some(r => safeStr(r.date) >= '2026-05-01'));
   const rangeKey = state.selection.start + '|' + state.selection.end;
   if (state._groupRangeKey !== rangeKey) {
     state.groupRows = aggregateGroups(drows);
@@ -3888,6 +3889,16 @@ function fmtQtyValue(n){
 function fmtRateValue(n){
   return Number.isFinite(Number(n)) ? fmtPct(Number(n)) : '—';
 }
+function getOutputSourceLabel(r){
+  const refill = Number(r?.refillQtyNew ?? r?.refill ?? r?.refillQty ?? 0);
+  return refill > 0 ? '補單' : '多產出';
+}
+function getMayGroupSourceColumn(sortValue){
+  const sort = sortValue || ($('sortSel') ? $('sortSel').value : '');
+  if (sort === 'prodRate') return { label:'差異來自', type:'source' };
+  if (['scrapAmt','scrapRate','overuseAmt','overuseRate'].includes(sort)) return { label:'超用來自', type:'source' };
+  return null;
+}
 function numericOrNull(v){
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
@@ -3956,7 +3967,7 @@ function fmtMayGroupCell(row, col){
 }
 
 function buildGroupHeaderHTML(){
-  const isNew = isMay2026OrLaterRange();
+  const isNew = isMay2026OrLaterRange() || !!state._forceMayGroupLayout;
   if (isNew) {
     const cols = getMayGroupColumns();
     return `
@@ -3965,6 +3976,7 @@ function buildGroupHeaderHTML(){
       <th>上市日期</th>
       <th class="text-right">單價</th>
       ${cols.map(c => `<th class="text-right">${c.label}</th>`).join('')}
+      ${getMayGroupSourceColumn()?.label ? `<th class="whitespace-nowrap">${getMayGroupSourceColumn().label}</th>` : ''}
     `;
   }
   const isRate = state.groupQtyMode === 'rate';
@@ -3982,7 +3994,7 @@ function buildGroupHeaderHTML(){
 }
 
 function syncMayGroupColumnsAndSort(){
-  const isNew = isMay2026OrLaterRange();
+  const isNew = isMay2026OrLaterRange() || !!state._forceMayGroupLayout;
   state._useMayGroupLayout = isNew;
   const sel = $('sortSel');
   if (sel) {
@@ -4313,6 +4325,7 @@ function fmtGroupMetricValue(row, key){
 }
 
 function applyGroupFilterAndRender(drows) {
+  state._forceMayGroupLayout = isMay2026OrLaterRange() || (Array.isArray(drows) && drows.some(r => safeStr(r.date) >= '2026-05-01'));
   const rangeKey = state.selection.start + '|' + state.selection.end;
   if (state._groupRangeKey !== rangeKey) {
     state.groupRows = aggregateGroups(drows);
@@ -4358,6 +4371,7 @@ function applyGroupFilterAndRender(drows) {
         <td class="mono">${getLaunchCellHTML(r.product)}</td>
         <td class="text-right mono">${r.unitPrice==null?'—':fmtUnitPrice(r.unitPrice)}</td>
         ${mayCols.map(c => `<td class="text-right mono">${fmtMayGroupCell(r, c)}</td>`).join('')}
+        ${getMayGroupSourceColumn(sort) ? `<td class="whitespace-nowrap">${getOutputSourceLabel(r)}</td>` : ''}
       `;
     } else {
       tr.innerHTML = `
@@ -4523,13 +4537,13 @@ function buildDetailHeaderHTML(hasNew){
         <th class="text-right">${isRate?'生管展開率':'生管展開量(kg)'}</th>
         <th class="text-right">${isRate?'生產實際產出率':'生產實際產出量(kg)'}</th>
         <th class="text-right">${isRate?'生產補單率':'生產補單量(kg)'}</th>
-        <th class="text-right">${isRate?'總產出率':'總產出(kg)'}</th>`;
+        <th class="text-right">${isRate?'總產出率':'總產出(kg)'}</th><th class="whitespace-nowrap">差異來自</th>`;
     }
     return `
       <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">單價</th><th class="text-right">訂單需求</th>
       <th class="text-right">${isRate?'總產出率':'總產出(kg)'}</th>
       <th class="text-right">${isRate?'報廢率':'報廢數(kg)'}</th><th class="text-right">報廢金額</th>
-      <th class="text-right">${isRate?'超用率':'超用數(kg)'}</th><th class="text-right">超用金額</th>`;
+      <th class="text-right">${isRate?'超用率':'超用數(kg)'}</th><th class="text-right">超用金額</th><th class="whitespace-nowrap">超用來自</th>`;
   }
   return `
     <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">訂單需求</th><th class="text-right">實際產出</th><th class="text-right">補單</th><th class="text-right">單價</th><th class="text-right">實際生產率</th>
@@ -4539,7 +4553,7 @@ function buildDetailHeaderHTML(hasNew){
 }
 
 function renderDetailTable(daily) {
-  const hasNew = (daily||[]).some(r => r._detailFormat === 'new');
+  const hasNew = isMay2026OrLaterRange() || (daily||[]).some(r => r._detailFormat === 'new' || safeStr(r.date) >= '2026-05-01');
   const headRow = $('detailTbody')?.closest('table')?.querySelector('thead tr');
   if (headRow) headRow.innerHTML = buildDetailHeaderHTML(hasNew);
   const expandBtn = $('detailExpandOutputBtn');
@@ -4560,9 +4574,9 @@ function renderDetailTable(daily) {
   for (const r of daily || []) {
     const tr = document.createElement('tr');
     if (hasNew && state.detailNewMetricMode === 'expandOutput') {
-      tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.expandRate):fmtQtyValue(r.expandQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.actualRate):fmtQtyValue(r.actualQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.refillRateNew):fmtQtyValue(r.refillQtyNew)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td>`;
+      tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.expandRate):fmtQtyValue(r.expandQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.actualRate):fmtQtyValue(r.actualQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.refillRateNew):fmtQtyValue(r.refillQtyNew)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td><td class="whitespace-nowrap">${getOutputSourceLabel(r)}</td>`;
     } else if (hasNew) {
-      tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td>`;
+      tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td><td class="whitespace-nowrap">${getOutputSourceLabel(r)}</td>`;
     } else {
       tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${fmtQtyValue(r.output)}</td><td class="text-right mono">${fmtQtyValue(r.refill)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${r.prodRate==null?'—':fmtPct(r.prodRate)}</td><td class="text-right mono">${isRate?fmtRateValue(r.diffRate):fmtQtyValue(r.diffQty)}</td><td class="text-right mono">${fmtMoney(r.diffAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td>`;
     }
@@ -4577,9 +4591,9 @@ function exportSelectedCsv() {
   const isRate = state.detailQtyMode === 'rate';
   let header;
   if (hasNew && state.detailNewMetricMode === 'expandOutput') {
-    header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'生管展開率':'生管展開量(kg)', isRate?'生產實際產出率':'生產實際產出量(kg)', isRate?'生產補單率':'生產補單量(kg)', isRate?'總產出率':'總產出(kg)'];
+    header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'生管展開率':'生管展開量(kg)', isRate?'生產實際產出率':'生產實際產出量(kg)', isRate?'生產補單率':'生產補單量(kg)', isRate?'總產出率':'總產出(kg)','差異來自'];
   } else if (hasNew) {
-    header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'總產出率':'總產出(kg)', isRate?'報廢率':'報廢數(kg)', '報廢金額', isRate?'超用率':'超用數(kg)', '超用金額'];
+    header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'總產出率':'總產出(kg)', isRate?'報廢率':'報廢數(kg)', '報廢金額', isRate?'超用率':'超用數(kg)', '超用金額','超用來自'];
   } else {
     header = ['日期','商品名','半成品名','訂單需求','實際產出','補單','單價','實際生產率', isRate?'差異率':'差異量','差異金額', isRate?'報廢率':'報廢量','報廢金額', isRate?'超用率':'超用量','超用金額'];
   }
@@ -4594,9 +4608,9 @@ function exportSelectedCsv() {
   for (const r of rows) {
     let arr;
     if (hasNew && state.detailNewMetricMode === 'expandOutput') {
-      arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.expandRate,'rate'):val(r.expandQty,'qty'), isRate?val(r.actualRate,'rate'):val(r.actualQty,'qty'), isRate?val(r.refillRateNew,'rate'):val(r.refillQtyNew,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty')];
+      arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.expandRate,'rate'):val(r.expandQty,'qty'), isRate?val(r.actualRate,'rate'):val(r.actualQty,'qty'), isRate?val(r.refillRateNew,'rate'):val(r.refillQtyNew,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty'), esc(getOutputSourceLabel(r))];
     } else if (hasNew) {
-      arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money')];
+      arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money'), esc(getOutputSourceLabel(r))];
     } else {
       arr = [r.date, esc(r.product), esc(r.semi), val(r.order,'qty'), val(r.output,'qty'), val(r.refill,'qty'), val(r.price,'qty'), val(r.prodRate,'rate'), isRate?val(r.diffRate,'rate'):val(r.diffQty,'qty'), val(r.diffAmt,'money'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money')];
     }
@@ -5055,6 +5069,238 @@ init();
     </div>
   </div>
 </div>
+
+
+<script>
+/* 2026-05+ source-column override: show 差異來自 / 超用來自 by selected date range */
+(function(){
+  function sourceColEnabled(){
+    try { return isMay2026OrLaterRange(); } catch(e) { return false; }
+  }
+  function sourceLabel(row){
+    const refill = Number(row?.refillQtyNew ?? row?.refill ?? row?.refillQty ?? 0);
+    return refill > 0 ? '補單' : '多產出';
+  }
+  function maySourceColumn(sortValue){
+    if (!sourceColEnabled()) return null;
+    const sort = sortValue || (document.getElementById('sortSel') ? document.getElementById('sortSel').value : '');
+    if (sort === 'prodRate') return { label:'差異來自' };
+    if (['scrapAmt','scrapRate','overuseAmt','overuseRate'].includes(sort)) return { label:'超用來自' };
+    return null;
+  }
+
+  window.getOutputSourceLabel = sourceLabel;
+  window.getMayGroupSourceColumn = maySourceColumn;
+
+  window.buildDetailHeaderHTML = function(hasNew){
+    const isRate = state.detailQtyMode === 'rate';
+    const useNew = sourceColEnabled() || !!hasNew;
+    if (useNew) {
+      if (state.detailNewMetricMode === 'expandOutput') {
+        return `
+          <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">單價</th><th class="text-right">訂單需求</th>
+          <th class="text-right">${isRate?'生管展開率':'生管展開量(kg)'}</th>
+          <th class="text-right">${isRate?'生產實際產出率':'生產實際產出量(kg)'}</th>
+          <th class="text-right">${isRate?'生產補單率':'生產補單量(kg)'}</th>
+          <th class="text-right">${isRate?'總產出率':'總產出(kg)'}</th>
+          ${sourceColEnabled() ? '<th class="whitespace-nowrap">差異來自</th>' : ''}`;
+      }
+      return `
+        <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">單價</th><th class="text-right">訂單需求</th>
+        <th class="text-right">${isRate?'總產出率':'總產出(kg)'}</th>
+        <th class="text-right">${isRate?'報廢率':'報廢數(kg)'}</th><th class="text-right">報廢金額</th>
+        <th class="text-right">${isRate?'超用率':'超用數(kg)'}</th><th class="text-right">超用金額</th>
+        ${sourceColEnabled() ? '<th class="whitespace-nowrap">超用來自</th>' : ''}`;
+    }
+    return `
+      <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">訂單需求</th><th class="text-right">實際產出</th><th class="text-right">補單</th><th class="text-right">單價</th><th class="text-right">實際生產率</th>
+      <th class="text-right">${isRate?'差異率':'差異量'}</th><th class="text-right">差異金額</th>
+      <th class="text-right">${isRate?'報廢率':'報廢量'}</th><th class="text-right">報廢金額</th>
+      <th class="text-right">${isRate?'超用率':'超用量'}</th><th class="text-right">超用金額</th>`;
+  };
+
+  window.renderDetailTable = function(daily){
+    const hasNew = sourceColEnabled() || (daily||[]).some(r => r._detailFormat === 'new' || safeStr(r.date) >= '2026-05-01');
+    const headRow = document.getElementById('detailTbody')?.closest('table')?.querySelector('thead tr');
+    if (headRow) headRow.innerHTML = window.buildDetailHeaderHTML(hasNew);
+
+    const expandBtn = document.getElementById('detailExpandOutputBtn');
+    if (expandBtn) {
+      expandBtn.style.display = hasNew ? '' : 'none';
+      expandBtn.textContent = state.detailNewMetricMode === 'expandOutput' ? '切換為報廢/超用' : '切換為展開產出';
+      expandBtn.classList.toggle('active', state.detailNewMetricMode === 'expandOutput');
+    }
+    const rateBtn = document.getElementById('detailQtyRateBtn');
+    if (rateBtn) {
+      rateBtn.style.display = '';
+      rateBtn.textContent = state.detailQtyMode === 'rate' ? '切換為數量' : '切換為比率';
+      rateBtn.classList.toggle('active', state.detailQtyMode === 'rate');
+    }
+
+    const tbody = document.getElementById('detailTbody');
+    tbody.innerHTML = '';
+    const isRate = state.detailQtyMode === 'rate';
+    const showSource = sourceColEnabled();
+    for (const r of daily || []) {
+      const tr = document.createElement('tr');
+      if (hasNew && state.detailNewMetricMode === 'expandOutput') {
+        tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.expandRate):fmtQtyValue(r.expandQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.actualRate):fmtQtyValue(r.actualQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.refillRateNew):fmtQtyValue(r.refillQtyNew)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td>${showSource ? `<td class="whitespace-nowrap">${sourceLabel(r)}</td>` : ''}`;
+      } else if (hasNew) {
+        tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td>${showSource ? `<td class="whitespace-nowrap">${sourceLabel(r)}</td>` : ''}`;
+      } else {
+        tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${fmtQtyValue(r.output)}</td><td class="text-right mono">${fmtQtyValue(r.refill)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${r.prodRate==null?'—':fmtPct(r.prodRate)}</td><td class="text-right mono">${isRate?fmtRateValue(r.diffRate):fmtQtyValue(r.diffQty)}</td><td class="text-right mono">${fmtMoney(r.diffAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td>`;
+      }
+      tbody.appendChild(tr);
+    }
+  };
+
+  window.buildGroupHeaderHTML = function(){
+    const isNew = sourceColEnabled() || !!state._forceMayGroupLayout;
+    if (isNew) {
+      const cols = getMayGroupColumns();
+      const src = maySourceColumn();
+      return `
+        <th>商品名</th>
+        <th>半成品名</th>
+        <th>上市日期</th>
+        <th class="text-right">單價</th>
+        ${cols.map(c => `<th class="text-right">${c.label}</th>`).join('')}
+        ${src ? `<th class="whitespace-nowrap">${src.label}</th>` : ''}
+      `;
+    }
+    const isRate = state.groupQtyMode === 'rate';
+    return `
+      <th>商品名</th>
+      <th>半成品名</th>
+      <th>上市日期</th>
+      <th class="text-right">單價</th>
+      <th class="text-right">補單</th>
+      <th class="text-right">實際生產率</th>
+      <th id="groupDiffHeader" class="text-right">${isRate ? '差異率' : '差異金額'}</th>
+      <th id="groupScrapHeader" class="text-right">${isRate ? '報廢率' : '報廢金額'}</th>
+      <th id="groupOveruseHeader" class="text-right">${isRate ? '超用率' : '超用金額'}</th>
+    `;
+  };
+
+  window.applyGroupFilterAndRender = function(drows){
+    state._forceMayGroupLayout = sourceColEnabled();
+    const rangeKey = state.selection.start + '|' + state.selection.end;
+    if (state._groupRangeKey !== rangeKey) {
+      state.groupRows = aggregateGroups(drows);
+      state._groupRangeKey = rangeKey;
+    }
+    syncGroupQtyRateHeaders();
+    const kwProd = document.getElementById('productSearch').value.trim().toLowerCase();
+    const kwSemi = document.getElementById('semiSearch').value.trim().toLowerCase();
+    const clsSel = document.getElementById('sharedClassSel');
+    const cls = clsSel ? clsSel.value : 'all';
+    let filtered = state.groupRows;
+    if (cls === 'shared') filtered = filtered.filter(r => r.product === '共用類');
+    if (cls === 'nonShared') filtered = filtered.filter(r => r.product !== '共用類');
+    if (kwProd) filtered = filtered.filter(r => r.product.toLowerCase().includes(kwProd));
+    if (kwSemi) filtered = filtered.filter(r => r.semi.toLowerCase().includes(kwSemi));
+
+    syncMayGroupColumnsAndSort();
+    const sort = document.getElementById('sortSel').value;
+    const isNewLayout = sourceColEnabled() || !!state._useMayGroupLayout;
+    const by = (k) => (a,b) => (Number(b[k])||0) - (Number(a[k])||0);
+    const byNullable = (k) => (a,b) => (a[k] == null ? -Infinity : Number(a[k])) < (b[k] == null ? -Infinity : Number(b[k])) ? 1 : -1;
+    if (sort === 'diffAmt') filtered.sort(by('diffAmt'));
+    if (sort === 'diffRate') filtered.sort(byNullable('diffRate'));
+    if (sort === 'prodRate') filtered.sort(byNullable('prodRate'));
+    if (sort === 'expandRate') filtered.sort(byNullable('expandRate'));
+    if (sort === 'actualRate') filtered.sort(byNullable('actualRate'));
+    if (sort === 'scrapAmt') filtered.sort(by('scrapAmt'));
+    if (sort === 'scrapRate') filtered.sort(byNullable('scrapRate'));
+    if (sort === 'overuseAmt') filtered.sort(by('overuseAmt'));
+    if (sort === 'overuseRate') filtered.sort(byNullable('overuseRate'));
+    if (sort === 'refillQty') filtered.sort(isNewLayout ? by('refillQtyNew') : by('refillQty'));
+
+    state.filteredGroups = filtered.slice(0,200);
+    document.getElementById('groupCount').textContent = state.filteredGroups.length.toLocaleString('zh-TW');
+    const tbody = document.getElementById('groupTbody');
+    tbody.innerHTML = '';
+    const mayCols = isNewLayout ? getMayGroupColumns(sort) : [];
+    const src = maySourceColumn(sort);
+    for (const r of state.filteredGroups) {
+      const tr = document.createElement('tr');
+      tr.className = 'cursor-pointer';
+      if (isNewLayout) {
+        tr.innerHTML = `
+          <td>${escapeHTML(r.product)}</td>
+          <td class="muted">${escapeHTML(r.semi)}</td>
+          <td class="mono">${getLaunchCellHTML(r.product)}</td>
+          <td class="text-right mono">${r.unitPrice==null?'—':fmtUnitPrice(r.unitPrice)}</td>
+          ${mayCols.map(c => `<td class="text-right mono">${fmtMayGroupCell(r, c)}</td>`).join('')}
+          ${src ? `<td class="whitespace-nowrap">${sourceLabel(r)}</td>` : ''}
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${escapeHTML(r.product)}</td>
+          <td class="muted">${escapeHTML(r.semi)}</td>
+          <td class="mono">${getLaunchCellHTML(r.product)}</td>
+          <td class="text-right mono">${r.unitPrice==null?'—':fmtUnitPrice(r.unitPrice)}</td>
+          <td class="text-right mono">${fmtInt(r.refillQty)}</td>
+          <td class="text-right mono">${r.prodRate==null?'—':fmtPct(r.prodRate)}</td>
+          <td class="text-right mono">${fmtGroupMetricValue(r, 'diff')}</td>
+          <td class="text-right mono">${fmtGroupMetricValue(r, 'scrap')}</td>
+          <td class="text-right mono">${fmtGroupMetricValue(r, 'overuse')}</td>
+        `;
+      }
+      tr.addEventListener('click', () => { state.selectedKey = r.key; renderSelectedItem(); });
+      tbody.appendChild(tr);
+    }
+    if (state.selectedKey && !filtered.some(x => x.key === state.selectedKey)) {
+      state.selectedKey = null;
+      document.getElementById('itemPanel').classList.add('hidden');
+    }
+  };
+
+  window.exportSelectedCsv = function(){
+    const rows = state.selectedDaily;
+    if (!rows || !rows.length) return;
+    const hasNew = sourceColEnabled() || rows.some(r => r._detailFormat === 'new' || safeStr(r.date) >= '2026-05-01');
+    const isRate = state.detailQtyMode === 'rate';
+    let header;
+    if (hasNew && state.detailNewMetricMode === 'expandOutput') {
+      header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'生管展開率':'生管展開量(kg)', isRate?'生產實際產出率':'生產實際產出量(kg)', isRate?'生產補單率':'生產補單量(kg)', isRate?'總產出率':'總產出(kg)'];
+      if (sourceColEnabled()) header.push('差異來自');
+    } else if (hasNew) {
+      header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'總產出率':'總產出(kg)', isRate?'報廢率':'報廢數(kg)', '報廢金額', isRate?'超用率':'超用數(kg)', '超用金額'];
+      if (sourceColEnabled()) header.push('超用來自');
+    } else {
+      header = ['日期','商品名','半成品名','訂單需求','實際產出','補單','單價','實際生產率', isRate?'差異率':'差異量','差異金額', isRate?'報廢率':'報廢量','報廢金額', isRate?'超用率':'超用量','超用金額'];
+    }
+    const esc = (s) => { const t = (s ?? '').toString(); return /[",\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t; };
+    const val = (v, type) => {
+      if (v == null || !Number.isFinite(Number(v))) return '';
+      if (type === 'rate') return Number(v).toFixed(4);
+      if (type === 'money') return Math.round(Number(v));
+      return Number(v).toString();
+    };
+    const lines = [header.join(',')];
+    for (const r of rows) {
+      let arr;
+      if (hasNew && state.detailNewMetricMode === 'expandOutput') {
+        arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.expandRate,'rate'):val(r.expandQty,'qty'), isRate?val(r.actualRate,'rate'):val(r.actualQty,'qty'), isRate?val(r.refillRateNew,'rate'):val(r.refillQtyNew,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty')];
+        if (sourceColEnabled()) arr.push(esc(sourceLabel(r)));
+      } else if (hasNew) {
+        arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money')];
+        if (sourceColEnabled()) arr.push(esc(sourceLabel(r)));
+      } else {
+        arr = [r.date, esc(r.product), esc(r.semi), val(r.order,'qty'), val(r.output,'qty'), val(r.refill,'qty'), val(r.price,'qty'), val(r.prodRate,'rate'), isRate?val(r.diffRate,'rate'):val(r.diffQty,'qty'), val(r.diffAmt,'money'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money')];
+      }
+      lines.push(arr.join(','));
+    }
+    const blob = new Blob(['\ufeff' + lines.join('\n')], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    const name = (rows[0].product + '_' + rows[0].semi + '_' + state.selection.start + '_' + state.selection.end).replace(/\s+/g,'');
+    a.href = URL.createObjectURL(blob);
+    a.download = name + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+})();
+</script>
 
 </body>
 </html>
