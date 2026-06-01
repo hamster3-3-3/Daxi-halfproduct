@@ -702,6 +702,7 @@ function fallbackScanAmountRight(sheet, r, c){
               <option value="overuseAmt">超用金額（高→低）</option>
               <option value="overuseRate">超用率（高→低）</option>
               <option value="refillQty">補單量（高→低）</option>
+              <option value="refillRateNew">補單率（高→低）</option>
             </select>
           </div>
         </div>
@@ -766,6 +767,7 @@ function fallbackScanAmountRight(sheet, r, c){
                 <button class="seg-btn" type="button" data-item-single="overuseAmt">超用金額</button>
                 <button class="seg-btn" type="button" data-item-single="overuseRate">超用率</button>
                 <button class="seg-btn" type="button" data-item-single="refillQty">補單量</button>
+                <button class="seg-btn" type="button" data-item-single="refillRateNew">補單率</button>
               </div>
             </div>
 
@@ -3642,6 +3644,14 @@ function renderItemChart(daily) {
       get: (r) => r.refill,
       fmt: (v) => fmtInt(v),
       tick: (v) => Math.round(Number(v)).toLocaleString('zh-TW')
+    },
+    refillRateNew: {
+      label: '補單率',
+      kind: 'rate',
+      unitTitle: '%',
+      get: (r) => r.refillRateNew,
+      fmt: (v) => fmtPct(v),
+      tick: (v) => (Number(v) * 100).toFixed(1) + '%'
     }
   };
 
@@ -3945,7 +3955,7 @@ function getMayGroupColumns(sortValue){
       { label:'超用金額', field:'overuseAmt', type:'money' }
     ];
   }
-  if (sort === 'refillQty') {
+  if (sort === 'refillQty' || sort === 'refillRateNew') {
     return [
       { label:'生產補單量', field:'refillQtyNew', type:'qty' },
       { label:'生產補單率', field:'refillRateNew', type:'rate' },
@@ -4003,7 +4013,7 @@ function syncMayGroupColumnsAndSort(){
       opt.hidden = isNew;
       opt.style.display = isNew ? 'none' : '';
     });
-    sel.querySelectorAll('option[value="expandRate"], option[value="actualRate"]').forEach(opt => {
+    sel.querySelectorAll('option[value="expandRate"], option[value="actualRate"], option[value="refillRateNew"]').forEach(opt => {
       opt.disabled = !isNew;
       opt.hidden = !isNew;
       opt.style.display = !isNew ? 'none' : '';
@@ -4011,7 +4021,7 @@ function syncMayGroupColumnsAndSort(){
     const prodOpt = sel.querySelector('option[value="prodRate"]');
     if (prodOpt) prodOpt.textContent = isNew ? '總產出率（高→低）' : '實際生產率（高→低）';
     if (isNew && (sel.value === 'diffAmt' || sel.value === 'diffRate')) sel.value = 'prodRate';
-    if (!isNew && (sel.value === 'expandRate' || sel.value === 'actualRate')) sel.value = 'prodRate';
+    if (!isNew && (sel.value === 'expandRate' || sel.value === 'actualRate' || sel.value === 'refillRateNew')) sel.value = 'prodRate';
   }
   const btn = $('groupQtyRateBtn');
   if (btn) btn.style.display = isNew ? 'none' : '';
@@ -4356,6 +4366,7 @@ function applyGroupFilterAndRender(drows) {
   if (sort === 'overuseAmt') filtered.sort(by('overuseAmt'));
   if (sort === 'overuseRate') filtered.sort(byNullable('overuseRate'));
   if (sort === 'refillQty') filtered.sort(isNewLayout ? by('refillQtyNew') : by('refillQty'));
+  if (sort === 'refillRateNew') filtered.sort(byNullable('refillRateNew'));
   state.filteredGroups = filtered.slice(0,200);
   $('groupCount').textContent = state.filteredGroups.length.toLocaleString('zh-TW');
   const tbody = $('groupTbody');
@@ -4469,10 +4480,13 @@ function syncItemMetricButtons(hasNew){
   document.querySelectorAll('button[data-item-single]').forEach(btn => {
     const m = btn.dataset.itemSingle;
     if (m === 'prodRate') btn.textContent = newLayout ? '總產出率' : '實際生產率';
-    const hide = newLayout && (m === 'diffAmt' || m === 'diffRate');
+    if (m === 'refillQty') btn.textContent = newLayout ? '生產補單量' : '補單量';
+    if (m === 'refillRateNew') btn.textContent = '補單率';
+    const hide = (newLayout && (m === 'diffAmt' || m === 'diffRate')) || (!newLayout && m === 'refillRateNew');
     btn.style.display = hide ? 'none' : '';
   });
   if (newLayout && (state.itemMetricSelected === 'diffAmt' || state.itemMetricSelected === 'diffRate')) state.itemMetricSelected = 'prodRate';
+  if (!newLayout && state.itemMetricSelected === 'refillRateNew') state.itemMetricSelected = 'refillQty';
 }
 
 function renderItemChart(daily) {
@@ -4489,7 +4503,8 @@ function renderItemChart(daily) {
     scrapRate:{label:'報廢率', kind:'rate', unitTitle:'%', get:r=>r.scrapRate, fmt:v=>fmtPct(v), tick:v=>(Number(v)*100).toFixed(1)+'%'},
     overuseAmt:{label:'超用金額', kind:'amt', unitTitle:'NT$', get:r=>r.overuseAmt, fmt:v=>fmtMoney(v), tick:v=>Math.round(Number(v)).toLocaleString('zh-TW')},
     overuseRate:{label:'超用率', kind:'rate', unitTitle:'%', get:r=>r.overuseRate, fmt:v=>fmtPct(v), tick:v=>(Number(v)*100).toFixed(1)+'%'},
-    refillQty:{label:hasNew?'生產補單量':'補單量', kind:'qty', unitTitle:'數量', get:r=>hasNew?r.refillQtyNew:r.refill, fmt:v=>fmtQtyValue(v), tick:v=>Math.round(Number(v)).toLocaleString('zh-TW')}
+    refillQty:{label:hasNew?'生產補單量':'補單量', kind:'qty', unitTitle:'數量', get:r=>hasNew?r.refillQtyNew:r.refill, fmt:v=>fmtQtyValue(v), tick:v=>Math.round(Number(v)).toLocaleString('zh-TW')},
+    refillRateNew:{label:'補單率', kind:'rate', unitTitle:'%', get:r=>r.refillRateNew, fmt:v=>fmtPct(v), tick:v=>(Number(v)*100).toFixed(1)+'%'}
   };
   const m = meta[metric] || (hasNew ? meta.prodRate : meta.diffAmt);
   const mode = state.mode || 'range';
@@ -5215,6 +5230,7 @@ init();
     if (sort === 'overuseAmt') filtered.sort(by('overuseAmt'));
     if (sort === 'overuseRate') filtered.sort(byNullable('overuseRate'));
     if (sort === 'refillQty') filtered.sort(isNewLayout ? by('refillQtyNew') : by('refillQty'));
+  if (sort === 'refillRateNew') filtered.sort(byNullable('refillRateNew'));
 
     state.filteredGroups = filtered.slice(0,200);
     document.getElementById('groupCount').textContent = state.filteredGroups.length.toLocaleString('zh-TW');
