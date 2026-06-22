@@ -393,6 +393,7 @@ function fallbackScanAmountRight(sheet, r, c){
 
   <script>
     const FACTORY_DASHBOARD_URLS = {
+      overview: "https://hamster3-3-3.github.io/factory_compare_dashboard/",
       xinfeng: "https://hamster3-3-3.github.io/XiFang-halfproduct/",
       jinxin: "https://hamster3-3-3.github.io/jinxin-halfproduct/",
       daxi: "https://hamster3-3-3.github.io/Daxi-halfproduct/",
@@ -416,6 +417,7 @@ function fallbackScanAmountRight(sheet, r, c){
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <div class="flex flex-wrap gap-2 items-center mr-1">
+          <button type="button" class="seg-btn" onclick="goFactoryDashboard('overview')">總覽</button>
           <button type="button" class="seg-btn" onclick="goFactoryDashboard('xinfeng')">新豐</button>
           <button type="button" class="seg-btn" onclick="goFactoryDashboard('jinxin')">晉欣</button>
           <button type="button" class="seg-btn active" onclick="goFactoryDashboard('daxi')">屏榮大溪</button>
