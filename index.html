@@ -22,19 +22,22 @@ function normKey(s){
 
 
 function normRangeKey(s){
-  // Normalize week-range keys like '0113-0119', '0113~0119', '0113～0119', '0113—0119'
   if(!s) return null;
-  const t = String(s);
-  const m = t.match(/\d{4}/g);
-  if(m && m.length>=2) return `${m[0]}-${m[1]}`;
-  // sometimes written as MM/DD-MM/DD
-  const mmdd = t.match(/(\d{1,2})\D+(\d{1,2})\D*(\d{1,2})\D+(\d{1,2})/);
-  if(mmdd){
-    const a = String(mmdd[1]).padStart(2,'0')+String(mmdd[2]).padStart(2,'0');
-    const b = String(mmdd[3]).padStart(2,'0')+String(mmdd[4]).padStart(2,'0');
+  const t = String(s).replace(/[～~—–－]/g,'-');
+  let m = t.match(/(\d{4})\s*-\s*(\d{4})/);
+  if (m) return `${m[1]}-${m[2]}`;
+  m = t.match(/(\d{4})\s*-\s*(\d{2})(?!\d)/);
+  if (m) return `${m[1]}-${m[1].slice(0,2)}${m[2]}`;
+  m = t.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (m){
+    const a = String(Number(m[1])).padStart(2,'0') + String(Number(m[2])).padStart(2,'0');
+    const b = String(Number(m[3])).padStart(2,'0') + String(Number(m[4])).padStart(2,'0');
     return `${a}-${b}`;
   }
-  return t.trim();
+  const dig = String(s||'').replace(/\D/g,'');
+  if (dig.length >= 8) return `${dig.slice(0,4)}-${dig.slice(4,8)}`;
+  if (dig.length === 6) return `${dig.slice(0,4)}-${dig.slice(0,2)}${dig.slice(4,6)}`;
+  return t.trim() || null;
 }
 
 function cellMatchesAnyAlias(cellVal, aliases){
@@ -83,14 +86,39 @@ function rangeKeyFromMonthCell(v){
 
 
 function weekRangeKeyFromSelection(){
-  // Use MMDD-MMDD to match Daxi Top20 sheets (left column shows week ranges like 0127-0202)
-  const w = state.weekValue || '';
-  // state.weekValue format: 'YYYY-MM-DD~YYYY-MM-DD'
-  const m = w.match(/(\d{4})-(\d{2})-(\d{2}).*?(\d{4})-(\d{2})-(\d{2})/);
-  if(!m) return null;
-  const a = `${m[2]}${m[3]}`;
-  const b = `${m[5]}${m[6]}`;
-  return `${a}-${b}`;
+  // Returns "MMDD-MMDD" for current selection.
+  // Week selector value may be:
+  // 1) "YYYY-MM-DD ~ YYYY-MM-DD"
+  // 2) "YYYY-MM-DD～YYYY-MM-DD"
+  // 3) "YYYY-MM-DD" (start date, Tue as start; end = +6 days)
+  let s = null, e = null;
+
+  if (state.mode === 'week'){
+    const v = safeStr(state.selection.weekStart).trim() || safeStr($('weekSel')?.value).trim();
+    if (!v) return null;
+
+    if (v.includes('~') || v.includes('～')){
+      const parts = v.split(/~|～/).map(x=>x.trim()).filter(Boolean);
+      s = parts[0] || null;
+      e = parts[1] || null;
+    } else {
+      s = v;
+      const ds = parseISO(s);
+      if (!(ds instanceof Date) || isNaN(ds)) return null;
+      e = toISO(addDays(ds, 6));
+    }
+  } else if (state.mode === 'day' || state.mode === 'range'){
+    s = state.selection.start;
+    e = state.selection.end;
+  }
+
+  if (!s || !e) return null;
+  const ds = parseISO(s); const de = parseISO(e);
+  if (!(ds instanceof Date) || isNaN(ds) || !(de instanceof Date) || isNaN(de)) return null;
+
+  const a = String(ds.getMonth()+1).padStart(2,'0') + String(ds.getDate()).padStart(2,'0');
+  const b = String(de.getMonth()+1).padStart(2,'0') + String(de.getDate()).padStart(2,'0');
+  return a + '-' + b;
 }
 
 
@@ -131,7 +159,7 @@ function makeTop20DupSetByRange(rangeKey, kind){
   for (const r of (state.top20Entries||[])){
     if (r.kind !== kind) continue;
     if (r.rangeKey !== rangeKey) continue;
-    const k = normKey(r.product) + '|' + normKey(r.semi) + '|' + normKey(r.reason);
+    const k = normKey(r.product) + '|' + normKey(r.semi) + '|' + top20RowReasonKey(r);
     s.add(k);
   }
   return s;
@@ -206,7 +234,7 @@ function makeTop20DupCountBefore(kind, cutoffStartISO, scopeMonthKey){
     if (scopeMonthKey && r.monthKey && r.monthKey !== scopeMonthKey) continue;
     if (r.kind !== kind) continue;
     if (!entryEndBeforeISO(r, cutoffStartISO)) continue;
-    const k = normKey(r.product) + '|' + normKey(r.semi) + '|' + normKey(r.reason);
+    const k = normKey(r.product) + '|' + normKey(r.semi) + '|' + top20RowReasonKey(r);
     if (!tmp.has(k)) tmp.set(k, new Set());
     tmp.get(k).add(r.rangeKey || r.monthKey || '');
   }
@@ -1707,100 +1735,250 @@ function monthKeyFromRangeKey(rangeKey, fileName){
   return y + '-' + mm;
 }
 
+
+function normalizeReasonKey(s){
+  const t = normKey(s);
+  if (!t) return '';
+  if (t.includes(normKey('展開量高於需求量')) || t.includes(normKey('展開量高於105%')) || t.includes(normKey('展開量高於１０5％')) || t.includes(normKey('展開量高於105％')) || t.includes(normKey('展開量105%')) || t.includes(normKey('展開量105％'))) return 'above105';
+  if (t.includes(normKey('調理多產'))) return 'tooMuch';
+  if (t.includes(normKey('製程不穩')) || t.includes(normKey('製程不穩定'))) return 'process';
+  if (t.includes(normKey('取樣不穩')) || t.includes(normKey('取樣不穩定')) || t.includes(normKey('抓樣不穩')) || t.includes(normKey('抓樣不穩定'))) return 'sample';
+  if (t.includes(normKey('原物料規格'))) return 'raw';
+  if (t.includes(normKey('研發設定'))) return 'rd';
+  if (t.includes(normKey('其他原因'))) return 'other';
+  if (t.includes(normKey('步留不足')) || t.includes(normKey('步留因素'))) return 'retention';
+  return t;
+}
+
+function top20RowReasonKey(r){
+  // 5月前/後版型欄位可能位移，展開列表比對時同時看原因欄、原因 key、原因說明與後續對策。
+  if (!r) return '';
+  const direct = normalizeReasonKey(r.reasonKey || r.reason || '');
+  if (direct) return direct;
+  const txt = [r.reason, r.desc, r.act, r.note, r.category].map(x => safeStr(x)).join(' ');
+  return normalizeReasonKey(txt);
+}
+
 function parseTop20FromWB(wb, fileName){
-  // 大溪新版 JFM「報廢/超用20大－原因別分析」欄位固定如下：
-  // B=月別/週別、D=排序、E=半成品名稱、F=金額、G=半成品單價、
-  // W=分析原因、X=原因說明、Y=後續對策、Z=次數、AA=備註-商品名稱。
-  // 之前用表頭模糊搜尋，會誤抓到生產資訊區的「單價/占比/名稱」欄，造成單價、半成品名、原因說明錯位。
-  const fileYear = (safeStr(fileName).match(/(20\d{2})/)||[])[1] || null;
+  const fileText = safeStr(fileName);
+  // 前二十大原因明細不再用固定欄位硬抓。
+  // 5 月前/後的 JFM 版型不同，這裡改為：
+  // 1) 年份以來源檔案/manifest 路徑判斷。
+  // 2) 週別以「報廢20大－原因別分析 / 超用20大－原因別分析」內的「月別」區塊文字判斷。
+  // 3) 每列的排序、半成品、金額、分析原因以列內內容動態定位，避免欄位位移造成誤抓。
+  const fileYear = (fileText.match(/(20\d{2})/)||[])[1] || (state.selection && state.selection.year ? String(state.selection.year) : null) || null;
+  const reasonKeys = new Set(REASON_DEFS.map(d => d.key));
 
-  function rangeKeyFromAny(v){
-    const raw = safeStr(v).trim();
-    if (!raw || raw === '月別') return null;
-    const n1 = normRangeKey(raw);
-    if (n1 && /^\d{4}-\d{4}$/.test(n1)) return n1;
-    const n2 = rangeKeyFromMonthCell(raw);
-    if (n2 && /^\d{4}-\d{4}$/.test(n2)) return n2;
+  function valueAt(row, c){ return (c>=0 && c<row.length) ? row[c] : null; }
+  function isHeaderText(t){
+    const x = safeStr(t).trim();
+    if (!x) return false;
+    return /^(月別|日期|排序|排名|序號|半成品|半成品名稱|半成品名|名稱|商品名|商品名稱|單價|半成品單價|報廢金額|超用金額|原因說明|其他原因說明|後續對策|備註商品名稱|備註-商品名稱|總件數|次數|金額|比例|占比|kg\/個|kg|元|%)$/.test(x);
+  }
+  function cleanText(v){
+    const t = safeStr(v).trim();
+    if (!t) return '';
+    if (isHeaderText(t)) return '';
+    return t;
+  }
+  function isBadTop20Text(t){
+    const x = safeStr(t).trim();
+    if (!x) return true;
+    if (x === '-' || x === '—') return true;
+    if (/^#+$/.test(x)) return true;
+    if (/^\d+(\.\d+)?$/.test(x)) return true;
+    if (/^NT\$?\s*\d/i.test(x)) return true;
+    if (isHeaderText(x)) return true;
+    return false;
+  }
+  function reasonKeyFromValue(v){
+    const k = normalizeReasonKey(v);
+    return reasonKeys.has(k) ? k : '';
+  }
+  function rangeInfoFromMarker(v){
+    // 支援：0609-0615、0609-15、6/9-6/15、6/9-15、6/9-6/15總合計↑。
+    let t = toHalfWidth(safeStr(v)).replace(/\s+/g,'').replace(/[～~—－]/g,'-');
+    t = t.replace(/總合計[↑↗]*$/,'').replace(/總合計/g,'').trim();
+    if (!t || t === '月別' || t === '日期') return null;
+
+    const withMonth = (rangeKey, endMM) => {
+      const rk = normRangeKey(rangeKey);
+      if (!rk) return null;
+      return {
+        rangeKey: rk,
+        year: fileYear,
+        monthKey: (fileYear && endMM) ? `${fileYear}-${String(endMM).padStart(2,'0')}` : null
+      };
+    };
+
+    let m = t.match(/(\d{1,2})\/(\d{1,2})-(\d{1,2})\/(\d{1,2})/);
+    if (m) {
+      const a = String(Number(m[1])).padStart(2,'0') + String(Number(m[2])).padStart(2,'0');
+      const b = String(Number(m[3])).padStart(2,'0') + String(Number(m[4])).padStart(2,'0');
+      return withMonth(`${a}-${b}`, Number(m[3]));
+    }
+    m = t.match(/(\d{1,2})\/(\d{1,2})-(\d{1,2})(?!\d)/);
+    if (m) {
+      const a = String(Number(m[1])).padStart(2,'0') + String(Number(m[2])).padStart(2,'0');
+      const b = String(Number(m[1])).padStart(2,'0') + String(Number(m[3])).padStart(2,'0');
+      return withMonth(`${a}-${b}`, Number(m[1]));
+    }
+    m = t.match(/(\d{4})-(\d{4})/);
+    if (m) return withMonth(`${m[1]}-${m[2]}`, m[2].slice(0,2));
+    m = t.match(/(\d{4})-(\d{2})(?!\d)/);
+    if (m) return withMonth(`${m[1]}-${m[1].slice(0,2)}${m[2]}`, m[1].slice(0,2));
+    return null;
+  }
+  function rangeInfoFromRow(row){
+    // 月別欄在新版/舊版可能位於 A 或 B，保守掃描左側 6 欄。
+    for (let c=0; c<Math.min(6, (row||[]).length); c++){
+      const info = rangeInfoFromMarker(valueAt(row, c));
+      if (info && info.rangeKey) return info;
+    }
+    return null;
+  }
+  function findRankCol(row){
+    // 排序欄在 5 月前/後常左右位移，直接找左側第一個 1~20 的整數。
+    for (let c=0; c<Math.min(10, (row||[]).length); c++){
+      const raw = valueAt(row, c);
+      if (raw == null || raw === '') continue;
+      const n = asNumber(raw);
+      if (Number.isInteger(n) && n >= 1 && n <= 20) return c;
+    }
+    return -1;
+  }
+  function findSemiCol(row, rankCol){
+    for (let c=rankCol+1; c<Math.min(rankCol+8, (row||[]).length); c++){
+      const t = cleanText(valueAt(row, c));
+      if (isBadTop20Text(t)) continue;
+      if (reasonKeyFromValue(t)) continue;
+      if (['原物料','組合室','組合端','組合蓋','其他原因','研發設定','取樣不穩','製程不穩','原物料規格','調理多產','步留不足'].includes(t)) continue;
+      return c;
+    }
+    return -1;
+  }
+  function findAmtCol(row, semiCol){
+    // 金額欄通常緊接半成品名右側；用第一個正數欄位，可同時支援新版與舊版位移。
+    for (let c=semiCol+1; c<Math.min(semiCol+8, (row||[]).length); c++){
+      const n = asNumber(valueAt(row, c));
+      if (Number.isFinite(n) && Math.abs(n) > 0) return c;
+    }
+    return -1;
+  }
+  function findReasonCol(row, amtCol){
+    const len = (row||[]).length;
+    for (let c=Math.max(0, amtCol+1); c<len; c++){
+      if (reasonKeyFromValue(valueAt(row, c))) return c;
+    }
+    for (let c=0; c<len; c++){
+      if (reasonKeyFromValue(valueAt(row, c))) return c;
+    }
+    return -1;
+  }
+  function textAfter(row, startCol, maxOffset){
+    const end = Math.min((row||[]).length, startCol + 1 + maxOffset);
+    for (let c=startCol+1; c<end; c++){
+      const t = cleanText(valueAt(row, c));
+      if (isBadTop20Text(t)) continue;
+      if (reasonKeyFromValue(t)) continue;
+      return {text:t, col:c};
+    }
+    return {text:'', col:-1};
+  }
+  function productCandidate(row, reasonCol){
+    // 目前多數版型為：分析原因、原因說明、後續對策、次數、備註商品名稱。
+    const directCol = reasonCol + 4;
+    let t = cleanText(valueAt(row, directCol));
+    if (!isBadTop20Text(t) && !reasonKeyFromValue(t)) return t;
+
+    for (let c=reasonCol+3; c<Math.min(reasonCol+8, (row||[]).length); c++){
+      t = cleanText(valueAt(row, c));
+      if (isBadTop20Text(t) || reasonKeyFromValue(t)) continue;
+      const before = [cleanText(valueAt(row, reasonCol+1)), cleanText(valueAt(row, reasonCol+2))].filter(Boolean);
+      if (before.includes(t)) continue;
+      return t;
+    }
+    return '';
+  }
+  function unitPriceCandidate(row, amtCol, reasonCol){
+    // 單價通常位於金額欄後、分析原因前的生產資訊區，取合理正數；若取不到則後續由日報明細反查。
+    for (let c=Math.max(0, amtCol+1); c<Math.min(reasonCol, amtCol+8); c++){
+      const n = asNumber(valueAt(row, c));
+      if (Number.isFinite(n) && n > 0 && n < 10000) return n;
+    }
     return null;
   }
 
-  function fileRangeKeyFromName(fn){
-    fn = safeStr(fn);
-    // 20260609-15 / 20260609-0615 / 20260609-20260615
-    let m = fn.match(/20\d{2}(\d{2})(\d{2})\s*[-~～]\s*(\d{2})(\d{2})/);
-    if (m) return `${m[1]}${m[2]}-${m[3]}${m[4]}`;
-    m = fn.match(/20\d{2}(\d{2})(\d{2})\s*[-~～]\s*(\d{2})(?!\d)/);
-    if (m) return `${m[1]}${m[2]}-${m[1]}${m[3]}`;
-    m = fn.match(/20\d{2}(\d{2})(\d{2})\s*[-~～]\s*20\d{2}(\d{2})(\d{2})/);
-    if (m) return `${m[1]}${m[2]}-${m[3]}${m[4]}`;
-    return null;
-  }
-
-  const fallbackRangeKey = normRangeKey(fileRangeKeyFromName(fileName));
   const out = [];
-
   for (const kind of ['scrap','over']){
     const sname = findTop20SheetName(wb, kind);
     if (!sname) continue;
     const ws = wb.Sheets[sname];
-    if (!ws) continue;
     const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
     if (!rows || !rows.length) continue;
 
-    // zero-based column indexes
-    const C = {
-      range: 1,   // B
-      rank: 3,    // D
-      semi: 4,    // E
-      amt: 5,     // F
-      unit: 6,    // G
-      reason: 22, // W
-      desc: 23,   // X
-      act: 24,    // Y
-      times: 25,  // Z
-      product: 26 // AA
-    };
+    let currentRangeKey = null;
+    let currentMonthKey = null;
+    let currentYear = fileYear || null;
 
-    let lastRangeKey = fallbackRangeKey || null;
     for (let r=0; r<rows.length; r++){
       const row = rows[r] || [];
 
-      const maybeRange = rangeKeyFromAny(row[C.range]);
-      if (maybeRange) lastRangeKey = maybeRange;
-      const rangeKey = lastRangeKey;
-      if (!rangeKey) continue;
+      const marker = rangeInfoFromRow(row);
+      if (marker && marker.rangeKey){
+        currentRangeKey = normRangeKey(marker.rangeKey);
+        currentYear = marker.year || fileYear || currentYear;
+        currentMonthKey = marker.monthKey || (currentRangeKey ? monthKeyFromRangeKey(currentRangeKey, fileName) : null);
+      }
 
-      const rank = asNumber(row[C.rank]);
-      if (!(Number.isFinite(rank) && rank >= 1 && rank <= 20)) continue;
+      if (!currentRangeKey) continue;
 
-      const semi = safeStr(row[C.semi]).trim();
-      const productRaw = safeStr(row[C.product]).trim();
-      const reason = safeStr(row[C.reason]).trim();
-      const desc = safeStr(row[C.desc]).trim();
-      const act  = safeStr(row[C.act]).trim();
-      const amt = asNumber(row[C.amt]);
-      const unitPrice = asNumber(row[C.unit]);
-      const times = asNumber(row[C.times]);
+      const rankCol = findRankCol(row);
+      if (rankCol < 0) continue;
 
-      // 排除重複表頭列或空白列
-      if (!semi || semi === '半成品名稱' || semi === '名稱') continue;
-      if (!Number.isFinite(amt)) continue;
-      if (!reason && !desc && !act && !productRaw) continue;
+      const semiCol = findSemiCol(row, rankCol);
+      if (semiCol < 0) continue;
+      const semi = cleanText(valueAt(row, semiCol));
+      if (!semi || isBadTop20Text(semi)) continue;
+
+      const amtCol = findAmtCol(row, semiCol);
+      if (amtCol < 0) continue;
+      const amt = asNumber(valueAt(row, amtCol));
+      if (!Number.isFinite(amt) || Math.abs(amt) <= 0) continue;
+
+      const reasonCol = findReasonCol(row, amtCol);
+      if (reasonCol < 0) continue;
+      const reason = cleanText(valueAt(row, reasonCol));
+      const reasonKey = reasonKeyFromValue(reason);
+      if (!reasonKey) continue;
+
+      const descInfo = textAfter(row, reasonCol, 3);
+      const actInfo = descInfo.col >= 0 ? textAfter(row, descInfo.col, 3) : {text:'', col:-1};
+      const times = asNumber(valueAt(row, reasonCol + 3));
+      const category = cleanText(valueAt(row, reasonCol - 1));
+      let product = productCandidate(row, reasonCol);
+      if (isBadTop20Text(product)) product = '';
+      const unitPrice = unitPriceCandidate(row, amtCol, reasonCol);
 
       out.push({
         kind,
-        rangeKey: normRangeKey(rangeKey),
-        monthKey: monthKeyFromRangeKey(normRangeKey(rangeKey), fileName) || inferMonthKeyFromFileName(fileName),
+        rangeKey: currentRangeKey,
+        monthKey: currentMonthKey || (currentRangeKey ? monthKeyFromRangeKey(currentRangeKey, fileName) : inferMonthKeyFromFileName(fileName)),
         reason,
-        product: productRaw || '',
+        reasonKey,
+        category,
+        product,
         semi,
         unitPrice: Number.isFinite(unitPrice) ? unitPrice : null,
         amt: Number.isFinite(amt) ? amt : 0,
-        desc,
-        act,
-        times: Number.isFinite(times) ? times : 0,
+        desc: descInfo.text || '',
+        act: actInfo.text || '',
+        times: Number.isFinite(times) ? times : null,
         source: safeStr(fileName),
-        year: fileYear
+        year: currentYear || fileYear,
+        layout: `dynamic:r${rankCol}:s${semiCol}:a${amtCol}:reason${reasonCol}`,
+        sourceSheet: sname,
+        sourceRow: r + 1
       });
     }
   }
@@ -1823,7 +2001,7 @@ function makeTop20DupSet(monthKey, kind){
   for (const r of (state.top20Entries||[])){
     if (r.kind !== kind) continue;
     if (r.monthKey !== monthKey) continue;
-    const k = normKey(r.product) + '|' + normKey(r.semi) + '|' + normKey(r.reason);
+    const k = normKey(r.product) + '|' + normKey(r.semi) + '|' + top20RowReasonKey(r);
     s.add(k);
   }
   return s;
@@ -1910,7 +2088,7 @@ function renderTop20Modal(){
   // sort by amount desc
   rows.sort((a,b)=>(b.amt||0)-(a.amt||0));
   for (const r of rows){
-    const k = normKey(r.product)+'|'+normKey(r.semi)+'|'+normKey(r.reason);
+    const k = normKey(r.product)+'|'+normKey(r.semi)+'|'+top20RowReasonKey(r);
     const dup = dupSet.has(k) ? '是' : '否';
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-100 hover:bg-slate-50';
@@ -2494,17 +2672,27 @@ function mergeTop20Entries(entries){
   const m = new Map();
   for(const e of (entries||[])){
     if(!e) continue;
-    const k = [e.kind, e.rangeKey||'', normKey(e.semi||''), String(e.unitPrice||''), String(e.amt||''), String(e.diffAmt||'')].join('|');
+    const reasonKey = top20RowReasonKey(e);
+    const k = [
+      e.kind,
+      e.year || '',
+      normRangeKey(e.rangeKey) || '',
+      reasonKey,
+      normKey(e.product || ''),
+      normKey(e.semi || ''),
+      Math.round((Number(e.amt)||0) * 100) / 100,
+      e.sourceSheet || '',
+      e.sourceRow || ''
+    ].join('|');
     if(!m.has(k)){
-      m.set(k, {...e});
+      m.set(k, {...e, reasonKey: e.reasonKey || reasonKey});
     }else{
       const cur = m.get(k);
-      // keep first non-empty fields
-      for(const f of ['reason','strategy','category','noteProduct','product']){
+      for(const f of ['reason','reasonKey','desc','act','category','noteProduct','product','semi','sourceSheet','sourceRow']){
         if(!cur[f] && e[f]) cur[f]=e[f];
       }
-      // keep max count
       if((e.times||0)>(cur.times||0)) cur.times=e.times;
+      if((e.unitPrice==null || !isFinite(e.unitPrice)) === false && (cur.unitPrice==null || !isFinite(cur.unitPrice))) cur.unitPrice=e.unitPrice;
     }
   }
   return Array.from(m.values());
@@ -4876,12 +5064,85 @@ function jumpToItemFromTop20(prod, semi){
   }
 }
 
+function resolveTop20DisplayPair(r, kind){
+  // 前二十大來源（JFM）中的商品名欄有時會因合併儲存格/備註欄而錯位。
+  // 顯示時優先用半成品報廢管理表明細依「半成品名 + 金額」反查正確商品名。
+  const fallback = {
+    product: safeStr(r?.product || '').trim(),
+    semi: safeStr(r?.semi || '').trim(),
+    unitPrice: (r && r.unitPrice != null && isFinite(r.unitPrice)) ? Number(r.unitPrice) : null
+  };
+
+  const badName = (x) => {
+    const t = safeStr(x).trim();
+    return !t || t === '-' || t === '—' || /^\d+(\.\d+)?$/.test(t);
+  };
+  if (!badName(fallback.product) && !badName(fallback.semi) && Number.isFinite(Number(fallback.unitPrice))) return fallback;
+
+  const semiKey = normKey(fallback.semi);
+  const detailSources = [].concat(Array.isArray(state.halfDetails) ? state.halfDetails : [], Array.isArray(state.details) ? state.details : []);
+  if (!semiKey || !detailSources.length) return fallback;
+
+  let start = null, end = null;
+  try{
+    const range = getDateRange();
+    start = range.start; end = range.end;
+  }catch(_){
+    start = state.selection?.start || null;
+    end = state.selection?.end || null;
+  }
+
+  const metric = (kind === 'scrap') ? 'scrapAmt' : 'overuseAmt';
+  const targetAmt = Number(r?.amt || 0);
+  const targetUnit = Number(r?.unitPrice);
+  const map = new Map();
+
+  for (const d of detailSources){
+    if (start && end && (d.date < start || d.date > end)) continue;
+    if (normKey(d.semi) !== semiKey) continue;
+    const product = safeStr(d.product || '').trim();
+    const semi = safeStr(d.semi || '').trim();
+    if (!product || !semi) continue;
+    const k = product + '||' + semi;
+    if (!map.has(k)) map.set(k, {product, semi, amt:0, unitSum:0, unitN:0, rows:0});
+    const o = map.get(k);
+    o.amt += Number(d[metric]) || 0;
+    const up = Number(d.price ?? d.unitPrice);
+    if (Number.isFinite(up) && up > 0){ o.unitSum += up; o.unitN += 1; }
+    o.rows += 1;
+  }
+
+  const candidates = Array.from(map.values());
+  if (!candidates.length) return fallback;
+
+  for (const c of candidates) c.unitPrice = c.unitN ? (c.unitSum / c.unitN) : null;
+
+  candidates.sort((a,b)=>{
+    const da = Math.abs((Number(a.amt)||0) - targetAmt);
+    const db = Math.abs((Number(b.amt)||0) - targetAmt);
+    if (da !== db) return da - db;
+    if (Number.isFinite(targetUnit)){
+      const ua = Number.isFinite(a.unitPrice) ? Math.abs(a.unitPrice-targetUnit) : Number.POSITIVE_INFINITY;
+      const ub = Number.isFinite(b.unitPrice) ? Math.abs(b.unitPrice-targetUnit) : Number.POSITIVE_INFINITY;
+      if (ua !== ub) return ua - ub;
+    }
+    return (b.rows||0) - (a.rows||0);
+  });
+
+  const best = candidates[0];
+  return {
+    product: best.product || fallback.product,
+    semi: best.semi || fallback.semi,
+    unitPrice: Number.isFinite(best.unitPrice) ? best.unitPrice : fallback.unitPrice
+  };
+}
+
 function renderTop20Expand(){
   const st = state._top20Exp;
   if (!st) return;
   const kind = st.kind;
   const reasonKey = st.reasonKey;
-  const rangeKey = st.rangeKey;
+  const rangeKey = normRangeKey(st.rangeKey);
   const monthKey = st.monthKey;
 
   const bS = $('top20ExpTabScrap'), bO = $('top20ExpTabOver');
@@ -4895,31 +5156,31 @@ function renderTop20Expand(){
     $('top20ExpAmtHeader').textContent='超用金額';
   }
 
-  const reasonMatch = (a,b) => {
-    const x = normKey(a), y = normKey(b);
-    if (!x || !y) return false;
-    return x === y || x.includes(y) || y.includes(x);
-  };
+  const wantedReason = normalizeReasonKey(reasonKey);
+  const selectedYear = (state.selection && state.selection.year) ? String(state.selection.year) : safeStr(state.selection?.start).slice(0,4);
+  let rows = (state.top20Entries||[]).filter(r => r.kind===kind && top20RowReasonKey(r)===wantedReason);
 
-  let rows = (state.top20Entries||[]).filter(r => r.kind===kind && reasonMatch(r.reason, reasonKey));
-
+  // 前二十大細項必須以「年份=來源檔案」+「區間=表內月別欄」定位。
+  // 週別模式：表內月別欄必須精準等於目前週別，例如 0609-0615；同時用來源檔案年份排除跨年度同 MMDD 的資料。
+  // 月別模式：表內週別只要落在/碰到目前月份即可；同樣以來源檔案年份輔助排除跨年度資料。
+  if (selectedYear){
+    rows = rows.filter(r => !r.year || String(r.year) === selectedYear);
+  }
   if (rangeKey){
-    const rk = normRangeKey(rangeKey);
-    rows = rows.filter(r => r.rangeKey && (normRangeKey(r.rangeKey)===rk || rangesOverlapMMDD(normRangeKey(r.rangeKey), rk)));
+    rows = rows.filter(r => normRangeKey(r.rangeKey) === rangeKey);
   } else if (monthKey){
     rows = rows.filter(r => (r.monthKey===monthKey) || (r.rangeKey && rangeKeyTouchesMonth(normRangeKey(r.rangeKey), monthKey)));
   }
 
-  // activeSources 只作為精準來源過濾；若過濾後為空，保留 range/month 已篩出的列，避免新版 JFM 累積表跨檔案時被誤清空。
   const act = Array.isArray(st.activeSources) ? st.activeSources : [];
-  if (act.length){
+  if (act.length && rows.length){
     const bySource = rows.filter(r => act.includes(r.source));
     if (bySource.length) rows = bySource;
   }
 
   const scopeMonthKey = (state.selection && state.selection.year && state.selection.month) ? `${state.selection.year}-${String(state.selection.month).padStart(2,'0')}` : null;
   const dupCount = makeTop20DupCountBefore(kind, st.cutoffStartISO, scopeMonthKey);
-const tbody = $('top20ExpBody');
+  const tbody = $('top20ExpBody');
   tbody.innerHTML = '';
   if (!rows.length){
     $('top20ExpEmpty').classList.remove('hidden');
@@ -4929,15 +5190,16 @@ const tbody = $('top20ExpBody');
 
   rows.sort((a,b)=>(b.amt||0)-(a.amt||0));
   for (const r of rows){
-    const k = normKey(r.product) + '|' + normKey(r.semi) + '|' + normKey(r.reason);
+    const fixedPair = resolveTop20DisplayPair(r, kind);
+    const k = normKey(fixedPair.product) + '|' + normKey(fixedPair.semi) + '|' + normalizeReasonKey(r.reasonKey || r.reason);
     const cnt = dupCount.get(k) || 0;
     const dup = cnt > 0 ? (`是，${cnt}次`) : '否';
     const tr = document.createElement('tr');
     tr.className='border-b border-slate-100 hover:bg-slate-50';
     tr.innerHTML = `
-      <td class="py-2 pr-4 whitespace-nowrap"><button type="button" class="js-jump text-sky-700 hover:underline" data-prod="${escapeHTML(r.product || '')}" data-semi="${escapeHTML(r.semi)}">${escapeHTML(r.product || '—')}</button></td>
-      <td class="py-2 pr-4 whitespace-nowrap"><button type="button" class="js-jump text-sky-700 hover:underline" data-prod="${escapeHTML(r.product || '')}" data-semi="${escapeHTML(r.semi)}">${escapeHTML(r.semi)}</button></td>
-      <td class="py-2 pr-4 text-right whitespace-nowrap">${(r.unitPrice!=null && isFinite(r.unitPrice)) ? fmtCurrency(r.unitPrice) : "—"}</td>
+      <td class="py-2 pr-4 whitespace-nowrap"><button type="button" class="js-jump text-sky-700 hover:underline" data-prod="${escapeHTML(fixedPair.product)}" data-semi="${escapeHTML(fixedPair.semi)}">${escapeHTML(fixedPair.product || '—')}</button></td>
+      <td class="py-2 pr-4 whitespace-nowrap"><button type="button" class="js-jump text-sky-700 hover:underline" data-prod="${escapeHTML(fixedPair.product)}" data-semi="${escapeHTML(fixedPair.semi)}">${escapeHTML(fixedPair.semi || '—')}</button></td>
+      <td class="py-2 pr-4 text-right whitespace-nowrap">${(fixedPair.unitPrice!=null && isFinite(fixedPair.unitPrice)) ? fmtCurrency(fixedPair.unitPrice) : ((r.unitPrice!=null && isFinite(r.unitPrice)) ? fmtCurrency(r.unitPrice) : "—")}</td>
       <td class="py-2 pr-4 whitespace-nowrap">${fmtCurrency(r.amt||0)}</td>
       <td class="py-2 pr-4 whitespace-pre-wrap">${escapeHTML(r.desc||'')}</td>
       <td class="py-2 pr-4 whitespace-pre-wrap">${escapeHTML(r.act||'')}</td>
