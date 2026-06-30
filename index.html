@@ -6,6 +6,35 @@
   <title>大溪鮮食廠｜半成品儀表板</title>
   <link rel="icon" href="data:," />
 
+<script>
+(function(){
+  function addStyle(){
+    if (document.getElementById('loadProgressStyle')) return;
+    var style = document.createElement('style');
+    style.id = 'loadProgressStyle';
+    style.textContent = '#dataStatus.load-status-chip{display:inline-flex;align-items:center;gap:10px;min-height:34px;white-space:nowrap}.status-spinner{width:14px;height:14px;border:2px solid #dbeafe;border-top-color:#60a5fa;border-radius:999px;animation:statusSpin .8s linear infinite;display:inline-block;flex:0 0 auto}@keyframes statusSpin{to{transform:rotate(360deg)}}.status-bgbar{display:inline-flex;align-items:center;gap:10px;min-width:260px}.status-bgbar-track{width:150px;height:8px;background:#dbeafe;border-radius:999px;overflow:hidden;border:1px solid #bfdbfe}.status-bgbar-fill{height:100%;width:0%;background:#93c5fd;border-radius:999px;transition:width .25s ease}.status-bgbar-text{font-size:12px;color:#64748b}@media (max-width:640px){.status-bgbar{min-width:190px}.status-bgbar-track{width:90px}}';
+    (document.head || document.documentElement).appendChild(style);
+  }
+  function chip(html){
+    addStyle();
+    var el = document.getElementById('dataStatus');
+    if (!el) return;
+    el.classList.add('load-status-chip');
+    el.innerHTML = html;
+  }
+  function clamp(v){ v=Number(v); if(!isFinite(v)) v=0; return Math.max(0,Math.min(100,v)); }
+  window.setCircularLoadProgress = window.setCircularLoadProgress || function(v){
+    var pct = clamp(v);
+    chip(pct >= 100 ? '<span>已優先載入近三個月資料</span>' : '<span class="status-spinner" aria-hidden="true"></span><span>預先載入近三個月資料中</span>');
+  };
+  window.setBackgroundBarProgress = window.setBackgroundBarProgress || function(done,total){
+    var t=Number(total)||0, d=Number(done)||0, pct=t>0?clamp(d/t*100):100;
+    chip('<span class="status-bgbar"><span class="status-bgbar-track"><span class="status-bgbar-fill" style="width:'+pct.toFixed(1)+'%"></span></span><span class="status-bgbar-text">其他月份背景載入中 '+Math.round(pct)+'%</span></span>');
+  };
+})();
+</script>
+
+
   <!-- Tailwind CSS (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -925,6 +954,70 @@ const toast = (msg) => {
 };
 
 
+// =========================
+// Loading progress UI
+// - Initial recent 3 months: compact circular spinner chip
+// - Background remaining months: compact light-blue bar chip
+// =========================
+function ensureLoadProgressUI(){
+  if (document.getElementById('loadProgressStyle')) return;
+  const style = document.createElement('style');
+  style.id = 'loadProgressStyle';
+  style.textContent = `
+    #dataStatus.load-status-chip{display:inline-flex;align-items:center;gap:10px;min-height:34px;white-space:nowrap;}
+    .status-spinner{width:14px;height:14px;border:2px solid #dbeafe;border-top-color:#60a5fa;border-radius:999px;animation:statusSpin .8s linear infinite;display:inline-block;flex:0 0 auto;}
+    @keyframes statusSpin{to{transform:rotate(360deg)}}
+    .status-bgbar{display:inline-flex;align-items:center;gap:10px;min-width:260px;}
+    .status-bgbar-track{width:150px;height:8px;background:#dbeafe;border-radius:999px;overflow:hidden;border:1px solid #bfdbfe;}
+    .status-bgbar-fill{height:100%;width:0%;background:#93c5fd;border-radius:999px;transition:width .25s ease;}
+    .status-bgbar-text{font-size:12px;color:#64748b;}
+    @media (max-width:640px){.status-bgbar{min-width:190px}.status-bgbar-track{width:90px}}
+  `;
+  document.head.appendChild(style);
+}
+function clampProgressValue(v){
+  v = Number(v);
+  if (!Number.isFinite(v)) v = 0;
+  return Math.max(0, Math.min(100, v));
+}
+function setStatusChipHTML(html){
+  ensureLoadProgressUI();
+  const el = document.getElementById('dataStatus');
+  if (!el) return;
+  el.classList.add('load-status-chip');
+  el.innerHTML = html;
+}
+function setCircularLoadProgress(value, message){
+  const pct = clampProgressValue(value);
+  const done = pct >= 100;
+  if (done) {
+    setStatusChipHTML(`<span>已優先載入近三個月資料</span>`);
+    return;
+  }
+  setStatusChipHTML(`<span class="status-spinner" aria-hidden="true"></span><span>預先載入近三個月資料中</span>`);
+}
+function setBackgroundBarProgress(done, total, message){
+  const t = Number(total) || 0;
+  const d = Number(done) || 0;
+  const pct = t > 0 ? clampProgressValue((d / t) * 100) : 100;
+  setStatusChipHTML(`
+    <span class="status-bgbar">
+      <span class="status-bgbar-track"><span class="status-bgbar-fill" style="width:${pct.toFixed(1)}%"></span></span>
+      <span class="status-bgbar-text">其他月份背景載入中 ${Math.round(pct)}%</span>
+    </span>
+  `);
+  if (t > 0 && d >= t) {
+    clearTimeout(setBackgroundBarProgress._hideTimer);
+    setBackgroundBarProgress._hideTimer = setTimeout(()=>{
+      const el = document.getElementById('dataStatus');
+      if (el) el.textContent = '資料已載入';
+    }, 2200);
+  }
+}
+window.setCircularLoadProgress = setCircularLoadProgress;
+window.setBackgroundBarProgress = setBackgroundBarProgress;
+
+
 // --- date/string helpers (避免 null.localeCompare、parseISO 未定義而中斷) ---
 function safeStr(x){ return (x===null || x===undefined) ? '' : String(x); }
 
@@ -1583,12 +1676,16 @@ function startBackgroundLoadRemainingData(){
   state._backgroundDataLoading = true;
   (async () => {
     const monthKeys = getManifestMonthKeysFromFiles(remaining);
+    let __bgDoneMonths = 0;
+    setBackgroundBarProgress(0, monthKeys.length, `背景載入其他月份資料（0/${monthKeys.length}）`);
     for (const mk of monthKeys) {
       try {
         await ensureDataForMonthKeys([mk], {background:true});
       } catch (e) {
         console.warn('背景月份載入失敗：' + mk, e);
       }
+      __bgDoneMonths += 1;
+      setBackgroundBarProgress(__bgDoneMonths, monthKeys.length, `背景載入其他月份資料（${__bgDoneMonths}/${monthKeys.length}）`);
       await new Promise(resolve => setTimeout(resolve, 0));
     }
     state._backgroundDataLoading = false;
@@ -1600,6 +1697,7 @@ function startBackgroundLoadRemainingData(){
         ? `背景載入完成（已讀 ${state.loadedDataFiles.size} 份檔案，部分失敗 ${failCount}）`
         : `已完成所有月份背景載入（${state.loadedDataFiles.size} 份檔案）`;
     }
+    setBackgroundBarProgress(monthKeys.length, monthKeys.length, el ? el.textContent : '已完成所有月份背景載入');
     try { renderAll(); if (state.selectedKey) renderSelectedItem(); } catch(e){}
   })();
 }
@@ -3061,6 +3159,9 @@ async function loadAllData() {
   let halfDet = [];
   let reasons = [];
   let top20 = [];
+  const __initialTotalFiles = wasteFiles.length + jfmFiles.length;
+  let __initialDoneFiles = 0;
+  setCircularLoadProgress(0, `優先載入近三個月資料（0/${__initialTotalFiles}）`);
 
   // 只解析「報廢管理表」的日別資料，避免 JFM 檔造成日別去重覆蓋不一致
   for (const f of wasteFiles) {
@@ -3077,6 +3178,8 @@ async function loadAllData() {
       console.warn(e);
       loadErrors.push(f);
     }
+    __initialDoneFiles += 1;
+    setCircularLoadProgress((__initialDoneFiles / Math.max(1, __initialTotalFiles)) * 100, `優先載入近三個月資料（${__initialDoneFiles}/${__initialTotalFiles}）`);
   }
 
   // 解析所有 JFM 檔（原因卡片 + 前20大 + 重複次數判定需要歷史）
@@ -3093,6 +3196,8 @@ async function loadAllData() {
       console.warn(e);
       loadErrors.push(f);
     }
+    __initialDoneFiles += 1;
+    setCircularLoadProgress((__initialDoneFiles / Math.max(1, __initialTotalFiles)) * 100, `優先載入近三個月資料（${__initialDoneFiles}/${__initialTotalFiles}）`);
   }
 
   state.loadedDataFiles = new Set(filesForLoad.filter(f => !loadErrors.includes(f)));
@@ -3130,6 +3235,7 @@ async function loadAllData() {
   const allTargetCount = recentPick.totalTargetCount || totalCount;
   const monthLabel = (recentPick.monthKeys || []).map(k => `${Number(k.slice(5,7))}月`).join('、');
   $('dataStatus').textContent = `已優先載入最近${RECENT_LOAD_MONTHS}個月 ${okCount}/${totalCount} 份檔案（${monthLabel || '依檔案日期'}；全部可用:${allTargetCount}；報廢管理表:${wasteFiles.length}、JFM:${jfmFiles.length}）`;
+  setCircularLoadProgress(100, `已優先載入近三個月資料（${okCount}/${totalCount}）`);
   if (loadErrors.length){
     console.warn('讀取失敗清單：', loadErrors);
     toast(`注意：有 ${loadErrors.length} 份檔案讀取失敗（已略過）`);
