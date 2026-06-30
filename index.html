@@ -413,6 +413,58 @@ function fallbackScanAmountRight(sheet, r, c){
   .sticky-pane{position:sticky;top:12px;z-index:40;}
 .sticky-pane.is-stuck{box-shadow:0 12px 30px rgba(15,23,42,.12);}
 @media (max-width:640px){.sticky-pane{top:8px;}}
+
+    .load-progress-wrap {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      white-space:nowrap;
+    }
+    .progress-circle {
+      --p: 0;
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: conic-gradient(#0f172a calc(var(--p) * 1%), #e2e8f0 0);
+      position: relative;
+      flex: 0 0 auto;
+    }
+    .progress-circle::before {
+      content:"";
+      position:absolute;
+      inset:4px;
+      border-radius:999px;
+      background:#fff;
+    }
+    .progress-circle-text {
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:9px;
+      font-weight:700;
+      color:#0f172a;
+      z-index:1;
+      font-variant-numeric: tabular-nums;
+    }
+    .bg-load-bar {
+      width: 180px;
+      height: 8px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+    .bg-load-bar-fill {
+      height: 100%;
+      width: var(--p, 0%);
+      border-radius: 999px;
+      background: #93c5fd;
+      transition: width .2s ease;
+    }
+
 </style>
 
   <!-- Local vendor scripts (GitHub Pages 同網域) -->
@@ -553,7 +605,8 @@ function fallbackScanAmountRight(sheet, r, c){
             <button class="seg-btn active" type="button" data-kpi-single="sales">營業額</button>
             <button class="seg-btn" type="button" data-kpi-single="scrapAmt">報廢額</button>
             <button class="seg-btn" type="button" data-kpi-single="scrapRate">報廢率</button>
-            <button class="seg-btn" type="button" data-kpi-single="overuseAmt">超用額</button>
+            <button class="seg-btn" type="button" data-kpi-single="overuseAmt">超用金額(多展-報廢)</button>
+            <button class="seg-btn hidden" type="button" data-kpi-single="overuseAmtB">超用金額B(多展-報廢)</button>
             <button class="seg-btn" type="button" data-kpi-single="overuseRate">超用率</button>
           </div>
         </div>
@@ -757,7 +810,8 @@ function fallbackScanAmountRight(sheet, r, c){
                 <button class="seg-btn" type="button" data-item-single="diffRate">差異率</button>
                 <button class="seg-btn" type="button" data-item-single="scrapAmt">報廢金額</button>
                 <button class="seg-btn" type="button" data-item-single="scrapRate">報廢率</button>
-                <button class="seg-btn" type="button" data-item-single="overuseAmt">超用金額</button>
+                <button class="seg-btn" type="button" data-item-single="overuseAmt">超用金額(多展-報廢)</button>
+                <button class="seg-btn hidden" type="button" data-item-single="overuseAmtB">超用金額B(多展-報廢)</button>
                 <button class="seg-btn" type="button" data-item-single="overuseRate">超用率</button>
                 <button class="seg-btn" type="button" data-item-single="refillQty">補單量</button>
                 <button class="seg-btn" type="button" data-item-single="refillRateNew">補單率</button>
@@ -794,7 +848,7 @@ function fallbackScanAmountRight(sheet, r, c){
                       <th class="text-right">報廢量</th>
                       <th class="text-right">報廢金額</th>
                       <th class="text-right">超用量</th>
-                      <th class="text-right">超用金額</th>
+                      <th class="text-right">超用金額(多展-報廢)</th>
                     </tr>
                   </thead>
                   <tbody id="detailTbody"></tbody>
@@ -3305,7 +3359,7 @@ function aggregateSeries(rows, metric, gran, start = null, end = null) {
 
   const ensureBucket = (k) => {
     if (!buckets.has(k)) {
-      buckets.set(k, { k, n: 0, sales: 0, scrapAmt: 0, overuseAmt: 0, topScrapAmt: 0, topOverAmt: 0, sharedAmt: 0 });
+      buckets.set(k, { k, n: 0, sales: 0, scrapAmt: 0, overuseAmt: 0, overuseAmtB: 0, topScrapAmt: 0, topOverAmt: 0, sharedAmt: 0 });
     }
     return buckets.get(k);
   };
@@ -3331,6 +3385,7 @@ function aggregateSeries(rows, metric, gran, start = null, end = null) {
     b.sales     += (Number(r.sales) || 0);
     b.scrapAmt  += (Number(r.scrapAmt) || 0);
     b.overuseAmt+= (Number(r.overuseAmt) || 0);
+    b.overuseAmtB+= overuseAmtBValue(r);
     b.topScrapAmt += (Number(r.topScrapAmt) || 0);
     b.topOverAmt  += (Number(r.topOverAmt) || 0);
     b.sharedAmt   += (Number(r.sharedAmt) || 0);
@@ -3364,7 +3419,7 @@ function aggregateSeries(rows, metric, gran, start = null, end = null) {
     if (!b) return null;
 
     // 金額類：加總
-    if (['sales','scrapAmt','overuseAmt','topScrapAmt','topOverAmt','sharedAmt'].includes(metric)) {
+    if (['sales','scrapAmt','overuseAmt','overuseAmtB','topScrapAmt','topOverAmt','sharedAmt'].includes(metric)) {
       return Number(b[metric]) || 0;
     }
 
@@ -3399,6 +3454,29 @@ function shouldUsePostMayOveruseLayout(rows){
   return isMay2026OrLaterRange() || !!state._forceMayGroupLayout || (Array.isArray(rows) && rows.some(r => safeStr(r && r.date) >= '2026-05-01'));
 }
 
+function getOveruseAmtLabel(rows){
+  return shouldUsePostMayOveruseLayout(rows) ? '超用金額A(多展)' : '超用金額(多展-報廢)';
+}
+function getOveruseAmtBLabel(){
+  return '超用金額B(多展-報廢)';
+}
+function overuseAmtBValue(row){
+  return (Number(row && row.overuseAmt) || 0) - (Number(row && row.scrapAmt) || 0);
+}
+function syncOveruseMetricLabels(rows){
+  const usePostMay = shouldUsePostMayOveruseLayout(rows);
+  const aLabel = usePostMay ? '超用金額A(多展)' : '超用金額(多展-報廢)';
+  document.querySelectorAll('button[data-kpi-single="overuseAmt"]').forEach(btn => { btn.textContent = aLabel; });
+  document.querySelectorAll('button[data-item-single="overuseAmt"]').forEach(btn => { btn.textContent = aLabel; });
+  document.querySelectorAll('button[data-kpi-single="overuseAmtB"], button[data-item-single="overuseAmtB"]').forEach(btn => {
+    btn.textContent = getOveruseAmtBLabel();
+    btn.classList.toggle('hidden', !usePostMay);
+    btn.style.display = usePostMay ? '' : 'none';
+  });
+  if (!usePostMay && state.kpiSelected && state.kpiSelected[0] === 'overuseAmtB') state.kpiSelected = ['overuseAmt'];
+  if (!usePostMay && state.itemMetricSelected === 'overuseAmtB') state.itemMetricSelected = 'overuseAmt';
+}
+
 function updateKPICards(srows) {
   const sum = (k) => srows.reduce((a,b)=>a + (Number(b[k])||0), 0);
 
@@ -3407,6 +3485,7 @@ function updateKPICards(srows) {
   const totalOverAmt = sum('overuseAmt');
   const totalOverAmtB = totalOverAmt - totalScrapAmt;
   const usePostMay = shouldUsePostMayOveruseLayout(srows);
+  syncOveruseMetricLabels(srows);
 
   // 以區間加總後重新計算「整段期間」的比率（避免直接加總每日百分比）
   const scrapRate = (Number.isFinite(totalSales) && totalSales > 0) ? (totalScrapAmt / totalSales) : NaN;
@@ -3596,6 +3675,7 @@ function bindReasonCardClicks(){
 function renderKPIChart(srows, start, end) {
   const gran = aggGranularity(start, end);
 
+  syncOveruseMetricLabels(srows);
   const metric = state.kpiSelected && state.kpiSelected.length ? state.kpiSelected[0] : null;
   if (!metric) return;
 
@@ -3607,7 +3687,8 @@ function renderKPIChart(srows, start, end) {
   const metricMeta = {
     sales: {label:'營業額', kind:'amt'},
     scrapAmt: {label:'報廢額', kind:'amt'},
-    overuseAmt: {label:'超用額', kind:'amt'},
+    overuseAmt: {label:getOveruseAmtLabel(srows), kind:'amt'},
+    overuseAmtB: {label:getOveruseAmtBLabel(), kind:'amt'},
     scrapRate: {label:'報廢率', kind:'rate'},
     overuseRate: {label:'超用率', kind:'rate'},
   };
@@ -4068,6 +4149,7 @@ function renderSelectedItem() {
 function renderItemChart(daily) {
 
   destroyChart('item');
+  syncOveruseMetricLabels(daily);
 
   const metric = state.itemMetricSelected || 'diffAmt';
   // sync UI active state
@@ -4101,12 +4183,28 @@ function renderItemChart(daily) {
       tick: (v) => Math.round(Number(v)).toLocaleString('zh-TW')
     },
     overuseAmt: {
-      label: '超用金額',
+      label: getOveruseAmtLabel(daily),
       kind: 'amt',
       unitTitle: 'NT$',
       get: (r) => r.overuseAmt,
       fmt: (v) => fmtMoney(v),
       tick: (v) => Math.round(Number(v)).toLocaleString('zh-TW')
+    },
+    overuseAmtB: {
+      label: getOveruseAmtBLabel(),
+      kind: 'amt',
+      unitTitle: 'NT$',
+      get: (r) => overuseAmtBValue(r),
+      fmt: (v) => fmtMoney(v),
+      tick: (v) => Math.round(Number(v)).toLocaleString('zh-TW')
+    },
+    overuseRate: {
+      label: '超用率',
+      kind: 'rate',
+      unitTitle: '%',
+      get: (r) => r.overuseRate,
+      fmt: (v) => fmtPct(v),
+      tick: (v) => (Number(v) * 100).toFixed(1) + '%'
     },
     refillQty: {
       label: '補單量',
@@ -5049,13 +5147,13 @@ function buildDetailHeaderHTML(hasNew){
       <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">單價</th><th class="text-right">訂單需求</th>
       <th class="text-right">${isRate?'總產出率':'總產出(kg)'}</th>
       <th class="text-right">${isRate?'報廢率':'報廢數(kg)'}</th><th class="text-right">報廢金額</th>
-      <th class="text-right">${isRate?'超用率':'超用數(kg)'}</th><th class="text-right">超用金額</th><th class="whitespace-nowrap">超用來自</th>`;
+      <th class="text-right">${isRate?'超用率':'超用數(kg)'}</th><th class="text-right">超用金額A(多展)</th><th class="text-right">超用金額B(多展-報廢)</th><th class="whitespace-nowrap">超用來自</th>`;
   }
   return `
     <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">訂單需求</th><th class="text-right">實際產出</th><th class="text-right">補單</th><th class="text-right">單價</th><th class="text-right">實際生產率</th>
     <th class="text-right">${isRate?'差異率':'差異量'}</th><th class="text-right">差異金額</th>
     <th class="text-right">${isRate?'報廢率':'報廢量'}</th><th class="text-right">報廢金額</th>
-    <th class="text-right">${isRate?'超用率':'超用量'}</th><th class="text-right">超用金額</th>`;
+    <th class="text-right">${isRate?'超用率':'超用量'}</th><th class="text-right">超用金額(多展-報廢)</th>`;
 }
 
 function renderDetailTable(daily) {
@@ -5082,7 +5180,7 @@ function renderDetailTable(daily) {
     if (hasNew && state.detailNewMetricMode === 'expandOutput') {
       tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.expandRate):fmtQtyValue(r.expandQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.actualRate):fmtQtyValue(r.actualQty)}</td><td class="text-right mono">${isRate?fmtRateValue(r.refillRateNew):fmtQtyValue(r.refillQtyNew)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td><td class="whitespace-nowrap">${getOutputSourceLabel(r)}</td>`;
     } else if (hasNew) {
-      tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td><td class="whitespace-nowrap">${getOutputSourceLabel(r)}</td>`;
+      tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${isRate?fmtRateValue(r.prodRate):fmtQtyValue(r.output)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td><td class="text-right mono">${fmtMoney(overuseAmtBValue(r))}</td><td class="whitespace-nowrap">${getOutputSourceLabel(r)}</td>`;
     } else {
       tr.innerHTML = `<td class="mono">${r.date}</td><td>${escapeHTML(r.product)}</td><td class="muted">${escapeHTML(r.semi)}</td><td class="text-right mono">${fmtQtyValue(r.order)}</td><td class="text-right mono">${fmtQtyValue(r.output)}</td><td class="text-right mono">${fmtQtyValue(r.refill)}</td><td class="text-right mono">${r.price==null?'—':fmtUnitPrice(r.price)}</td><td class="text-right mono">${r.prodRate==null?'—':fmtPct(r.prodRate)}</td><td class="text-right mono">${isRate?fmtRateValue(r.diffRate):fmtQtyValue(r.diffQty)}</td><td class="text-right mono">${fmtMoney(r.diffAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.scrapRate):fmtQtyValue(r.scrapQty)}</td><td class="text-right mono">${fmtMoney(r.scrapAmt)}</td><td class="text-right mono">${isRate?fmtRateValue(r.overuseRate):fmtQtyValue(r.overuseQty)}</td><td class="text-right mono">${fmtMoney(r.overuseAmt)}</td>`;
     }
@@ -5099,7 +5197,7 @@ function exportSelectedCsv() {
   if (hasNew && state.detailNewMetricMode === 'expandOutput') {
     header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'生管展開率':'生管展開量(kg)', isRate?'生產實際產出率':'生產實際產出量(kg)', isRate?'生產補單率':'生產補單量(kg)', isRate?'總產出率':'總產出(kg)','差異來自'];
   } else if (hasNew) {
-    header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'總產出率':'總產出(kg)', isRate?'報廢率':'報廢數(kg)', '報廢金額', isRate?'超用率':'超用數(kg)', '超用金額','超用來自'];
+    header = ['日期','商品名','半成品名','單價','訂單需求', isRate?'總產出率':'總產出(kg)', isRate?'報廢率':'報廢數(kg)', '報廢金額', isRate?'超用率':'超用數(kg)', '超用金額A(多展)','超用金額B(多展-報廢)','超用來自'];
   } else {
     header = ['日期','商品名','半成品名','訂單需求','實際產出','補單','單價','實際生產率', isRate?'差異率':'差異量','差異金額', isRate?'報廢率':'報廢量','報廢金額', isRate?'超用率':'超用量','超用金額'];
   }
@@ -5116,7 +5214,7 @@ function exportSelectedCsv() {
     if (hasNew && state.detailNewMetricMode === 'expandOutput') {
       arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.expandRate,'rate'):val(r.expandQty,'qty'), isRate?val(r.actualRate,'rate'):val(r.actualQty,'qty'), isRate?val(r.refillRateNew,'rate'):val(r.refillQtyNew,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty'), esc(getOutputSourceLabel(r))];
     } else if (hasNew) {
-      arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money'), esc(getOutputSourceLabel(r))];
+      arr = [r.date, esc(r.product), esc(r.semi), val(r.price,'qty'), val(r.order,'qty'), isRate?val(r.prodRate,'rate'):val(r.output,'qty'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money'), val(overuseAmtBValue(r),'money'), esc(getOutputSourceLabel(r))];
     } else {
       arr = [r.date, esc(r.product), esc(r.semi), val(r.order,'qty'), val(r.output,'qty'), val(r.refill,'qty'), val(r.price,'qty'), val(r.prodRate,'rate'), isRate?val(r.diffRate,'rate'):val(r.diffQty,'qty'), val(r.diffAmt,'money'), isRate?val(r.scrapRate,'rate'):val(r.scrapQty,'qty'), val(r.scrapAmt,'money'), isRate?val(r.overuseRate,'rate'):val(r.overuseQty,'qty'), val(r.overuseAmt,'money')];
     }
@@ -5703,14 +5801,14 @@ init();
         <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">單價</th><th class="text-right">訂單需求</th>
         <th class="text-right">${isRate?'總產出率':'總產出(kg)'}</th>
         <th class="text-right">${isRate?'報廢率':'報廢數(kg)'}</th><th class="text-right">報廢金額</th>
-        <th class="text-right">${isRate?'超用率':'超用數(kg)'}</th><th class="text-right">超用金額</th>
+        <th class="text-right">${isRate?'超用率':'超用數(kg)'}</th><th class="text-right">超用金額(多展-報廢)</th>
         <th class="whitespace-nowrap">超用來自</th>`;
     }
     return `
       <th>日期</th><th>商品名</th><th>半成品名</th><th class="text-right">訂單需求</th><th class="text-right">實際產出</th><th class="text-right">補單</th><th class="text-right">單價</th><th class="text-right">實際生產率</th>
       <th class="text-right">${isRate?'差異率':'差異量'}</th><th class="text-right">差異金額</th>
       <th class="text-right">${isRate?'報廢率':'報廢量'}</th><th class="text-right">報廢金額</th>
-      <th class="text-right">${isRate?'超用率':'超用量'}</th><th class="text-right">超用金額</th>`;
+      <th class="text-right">${isRate?'超用率':'超用量'}</th><th class="text-right">超用金額(多展-報廢)</th>`;
   };
 
   window.renderDetailTable = function(daily){
