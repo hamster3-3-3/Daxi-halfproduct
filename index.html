@@ -506,7 +506,7 @@ function fallbackScanAmountRight(sheet, r, c){
     </div>
 
     <!-- KPI cards -->
-    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
       <div class="card p-4">
         <div class="kpi-card-title">營業額</div>
         <div id="kpiSales" class="kpi-card-value mono mt-1">—</div>
@@ -518,65 +518,37 @@ function fallbackScanAmountRight(sheet, r, c){
       <div class="card p-4">
         <div class="kpi-card-title">報廢率</div>
         <div id="kpiScrapRate" class="kpi-card-value mono mt-1">—</div>
-</div>
-      <div class="card p-4">
-        <div class="kpi-card-title">超用額</div>
+</div>      <div class="card p-4">
+        <div id="kpiOverAmtLabel" class="kpi-card-title">超用金額(多展-報廢)</div>
         <div id="kpiOverAmt" class="kpi-card-value mono mt-1">—</div>
+</div>
+      <div id="kpiOverAmtBCard" class="card p-4 hidden">
+        <div id="kpiOverAmtBLabel" class="kpi-card-title">超用金額B(多展-報廢)</div>
+        <div id="kpiOverAmtB" class="kpi-card-value mono mt-1">—</div>
 </div>
       <div class="card p-4">
         <div class="kpi-card-title">超用率</div>
         <div id="kpiOverRate" class="kpi-card-value mono mt-1">—</div>
 </div>
     </div>
-
-    <!-- Top cards -->
-    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
-      <div class="card p-4">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <div class="kpi-card-title">廢棄前10名</div>
-            <div id="topScrapAmt" class="kpi-card-value mono mt-1">—</div>
-            <div class="subval mt-1">構成比：<span id="topScrapShare" class="mono">—</span></div>
-          </div>
-          
-        </div>
-      </div>
-
-      <div class="card p-4">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <div class="kpi-card-title">超用前10名</div>
-            <div id="topOverAmt" class="kpi-card-value mono mt-1">—</div>
-            <div class="subval mt-1">構成比：<span id="topOverShare" class="mono">—</span></div>
-          </div>
-          
-        </div>
-      </div>
-
-      <div class="card p-4">
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <div class="kpi-card-title">共用類廢棄</div>
-            <div id="sharedAmt" class="kpi-card-value mono mt-1">—</div>
-            <div class="subval mt-1 flex items-center gap-2">
-              構成比（KPI 15%）：<span id="sharedShare" class="mono">—</span>
-              <span id="sharedBadge" class="hidden"></span>
-            </div>
-          </div>
-          
-        </div>
-      </div>
+    <!-- Top cards removed per request: keep hidden placeholders so existing JavaScript can update values without rendering the cards. -->
+    <div class="hidden" aria-hidden="true">
+      <span id="topScrapAmt"></span>
+      <span id="topScrapShare"></span>
+      <span id="topOverAmt"></span>
+      <span id="topOverShare"></span>
+      <span id="sharedAmt"></span>
+      <span id="sharedShare"></span>
+      <span id="sharedBadge"></span>
     </div>
 
     <!-- Charts -->
-    <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div class="mt-4 grid grid-cols-1 gap-3">
       <div class="card p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div class="text-sm font-semibold">KPI 趨勢圖</div>
-            
           </div>
-          
           <div class="flex flex-wrap gap-2 items-center" id="kpiSingleWrap">
             <button class="seg-btn active" type="button" data-kpi-single="sales">營業額</button>
             <button class="seg-btn" type="button" data-kpi-single="scrapAmt">報廢額</button>
@@ -585,34 +557,20 @@ function fallbackScanAmountRight(sheet, r, c){
             <button class="seg-btn" type="button" data-kpi-single="overuseRate">超用率</button>
           </div>
         </div>
-        <div class="mt-3">
-          <canvas id="kpiChart" height="220"></canvas>
+        <div class="mt-3 h-[340px]">
+          <canvas id="kpiChart" height="340" style="height:340px;"></canvas>
         </div>
       </div>
+    </div>
 
-      <div class="card p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div class="text-sm font-semibold">廢棄／超用 趨勢圖</div>
-            
-          </div>
-          <div class="flex flex-wrap gap-2 items-center">
-            <div class="flex flex-wrap gap-2 items-center">
-              <button class="seg-btn active" data-right="scrapTop10">廢棄前10名</button>
-              <button class="seg-btn" data-right="overTop10">超用前10名</button>
-              <button class="seg-btn" data-right="shared">共用類廢棄</button>
-            </div>
-            <div class="h-6 w-px bg-slate-200 mx-1"></div>
-            <div class="flex flex-wrap gap-2 items-center">
-              <button class="seg-btn active" data-right-metric="amt">金額</button>
-              <button class="seg-btn" data-right-metric="share">構成比</button>
-            </div>
-          </div>
-        </div>
-        <div class="mt-3">
-          <canvas id="rightChart" height="220"></canvas>
-        </div>
-      </div>
+    <!-- 廢棄／超用趨勢圖已移除；保留隱藏元件供既有 JavaScript 更新狀態，避免缺少 DOM 節點。 -->
+    <div class="hidden" aria-hidden="true">
+      <button class="seg-btn active" type="button" data-right="scrapTop10">廢棄前10名</button>
+      <button class="seg-btn" type="button" data-right="overTop10">超用前10名</button>
+      <button class="seg-btn" type="button" data-right="shared">共用類廢棄</button>
+      <button class="seg-btn active" type="button" data-right-metric="amt">金額</button>
+      <button class="seg-btn" type="button" data-right-metric="share">構成比</button>
+      <canvas id="rightChart" height="1"></canvas>
     </div>
 
     
@@ -734,6 +692,7 @@ function fallbackScanAmountRight(sheet, r, c){
               <option value="scrapAmt">報廢金額（高→低）</option>
               <option value="scrapRate">報廢率（高→低）</option>
               <option value="overuseAmt">超用金額（高→低）</option>
+              <option value="overuseAmtB">超用金額B（高→低）</option>
               <option value="overuseRate">超用率（高→低）</option>
               <option value="refillQty">補單量（高→低）</option>
               <option value="refillRateNew">補單率（高→低）</option>
@@ -776,7 +735,7 @@ function fallbackScanAmountRight(sheet, r, c){
                   <th class="text-right">實際生產率</th>
                   <th id="groupDiffHeader" class="text-right">差異金額</th>
                   <th id="groupScrapHeader" class="text-right">報廢金額</th>
-                  <th id="groupOveruseHeader" class="text-right">超用金額</th>
+                  <th id="groupOveruseHeader" class="text-right">超用金額(多展-報廢)</th>
                 </tr>
               </thead>
               <tbody id="groupTbody"></tbody>
@@ -896,7 +855,10 @@ const state = {
   },
   _groupRangeKey: null,
   reasonWeeks: [],
-  top20Entries: []
+  top20Entries: [],
+  loadedDataFiles: new Set(),
+  loadErrors: [],
+  backgroundLoadDone: false
 
 };
 const $ = (id) => document.getElementById(id);
@@ -1376,7 +1338,217 @@ function pickRecentManifestFiles(files, monthWindow = RECENT_LOAD_MONTHS){
 
   return { files:picked, startIdx, endIdx, monthKeys, totalTargetCount:targets.length, limited:true };
 }
+
 // ------------------------------------------------------------
+
+function manifestMonthKeyFromPath(path){
+  const idx = manifestMonthIndexFromPath(path);
+  return Number.isFinite(Number(idx)) ? manifestMonthKeyFromIndex(idx) : null;
+}
+
+function getManifestMonthKeysFromFiles(files = null){
+  const keys = new Set();
+  const list = files || state.manifestAllFiles || state.manifestFiles || [];
+  for (const f of list){
+    const mk = manifestMonthKeyFromPath(f);
+    if (/^20\d{2}-(0[1-9]|1[0-2])$/.test(String(mk || ''))) keys.add(mk);
+  }
+  return Array.from(keys).sort();
+}
+
+
+
+function monthKeysBetween(startISO, endISO){
+  const s = parseISO(startISO);
+  const e = parseISO(endISO);
+  if (!(s instanceof Date) || isNaN(s) || !(e instanceof Date) || isNaN(e)) return [];
+  const out = [];
+  const cur = new Date(s.getFullYear(), s.getMonth(), 1);
+  const last = new Date(e.getFullYear(), e.getMonth(), 1);
+  while (cur <= last) {
+    out.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`);
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return out;
+}
+
+function daxiFilesForMonthKeys(monthKeys){
+  const set = new Set((monthKeys || []).filter(Boolean));
+  if (!set.size) return [];
+  const all = state.manifestAllFiles || state.manifestFiles || [];
+  return all.filter(f => {
+    if (!(isWasteFile(f) || isJfmFile(f))) return false;
+    const mk = manifestMonthKeyFromPath(f);
+    return mk && set.has(mk);
+  });
+}
+
+function computeNeededMonthKeysFromUI(){
+  const mode = state.mode;
+  const y = $('yearSel') ? $('yearSel').value : state.selection.year;
+  const m = $('monthSel') ? $('monthSel').value : state.selection.month;
+  if (mode === 'month') return (y && m) ? [`${y}-${m}`] : [];
+  if (mode === 'week') {
+    const ws = $('weekSel') ? $('weekSel').value : state.selection.weekStart;
+    const w = (state.weeks || []).find(x => x.start === ws);
+    if (w && w.start && w.end) return monthKeysBetween(w.start, w.end);
+    const ds = parseISO(ws);
+    if (ds instanceof Date && !isNaN(ds)) return monthKeysBetween(toISO(ds), toISO(addDays(ds, 6)));
+    return (y && m) ? [`${y}-${m}`] : [];
+  }
+  if (mode === 'day') {
+    const d = $('daySel') ? $('daySel').value : state.selection.day;
+    return d ? [String(d).slice(0,7)] : [];
+  }
+  if (mode === 'range') {
+    const st = $('rangeStart') ? $('rangeStart').value : state.selection.start;
+    const ed = $('rangeEnd') ? $('rangeEnd').value : state.selection.end;
+    return (st && ed) ? monthKeysBetween(st, ed) : [];
+  }
+  // 年別不前台等待整年資料，其他月份會由背景載入。
+  return [];
+}
+
+function mergeParsedDataIntoState(sum=[], det=[], halfDet=[], reasons=[], top20=[]){
+  const sm = new Map();
+  for (const r of (state.summary || [])) if (r && r.date) sm.set(r.date, r);
+  for (const r of (sum || [])) if (r && r.date) sm.set(r.date, r);
+  state.summary = Array.from(sm.values()).sort((a,b)=>safeLocaleCompare(a.date,b.date));
+
+  const dm = new Map();
+  for (const r of (state.details || [])) if (r && r.date) dm.set([r.date, r.product, r.semi, r.order, r.output, r.scrapAmt, r.overuseAmt].join('|'), r);
+  for (const r of (det || [])) if (r && r.date) dm.set([r.date, r.product, r.semi, r.order, r.output, r.scrapAmt, r.overuseAmt].join('|'), r);
+  state.details = Array.from(dm.values()).sort((a,b)=>safeLocaleCompare(a.date,b.date));
+
+  const hm = new Map();
+  for (const r of (state.halfDetails || [])) if (r && r.date) hm.set([r.date, r.product, r.semi, r.order, r.output, r.scrapQty, r.scrapAmt, r.overuseQty, r.overuseAmt].join('|'), r);
+  for (const r of (halfDet || [])) if (r && r.date) hm.set([r.date, r.product, r.semi, r.order, r.output, r.scrapQty, r.scrapAmt, r.overuseQty, r.overuseAmt].join('|'), r);
+  state.halfDetails = Array.from(hm.values()).sort((a,b)=>safeLocaleCompare(a.date,b.date));
+
+  const rm = new Map();
+  for (const r of (state.reasonWeeks || [])) if (r) rm.set([r.start, r.end, r.reason, r.source].join('|'), r);
+  for (const r of (reasons || [])) if (r) rm.set([r.start, r.end, r.reason, r.source].join('|'), r);
+  state.reasonWeeks = Array.from(rm.values());
+
+  state.top20Entries = mergeTop20Entries([...(state.top20Entries || []), ...(top20 || [])]);
+
+  if (state.summary.length){
+    state.dateMin = state.summary[0].date;
+    state.dateMax = state.summary[state.summary.length - 1].date;
+  }
+}
+
+async function parseDaxiFiles(files){
+  const loadErrors = [];
+  const loadedFiles = [];
+  let sum = [], det = [], halfDet = [], reasons = [], top20 = [];
+
+  for (const f of (files || [])) {
+    try {
+      const url = './data/' + encodePath(f);
+      const r = await fetch(url, {cache:'no-store'});
+      if (!r.ok) throw new Error('讀取失敗：' + f);
+      const ab = await r.arrayBuffer();
+      const wb = XLSX.read(ab, {type:'array', cellDates:true});
+      if (isWasteFile(f)) {
+        sum = sum.concat(parseSummaryFromWB(wb, f));
+        det = det.concat(parseDetailsFromWB(wb, f));
+        halfDet = halfDet.concat(parseHalfDetailsFromWB(wb, f));
+      } else if (isJfmFile(f)) {
+        reasons = reasons.concat(parseReasonFromWB(wb, f) || []);
+        top20 = top20.concat(parseTop20FromWB(wb, f));
+      }
+      loadedFiles.push(f);
+    } catch (e) {
+      console.warn(e);
+      loadErrors.push(f);
+    }
+  }
+  return {sum, det, halfDet, reasons, top20, loadErrors, loadedFiles};
+}
+
+function rebuildSelectorsPreservingSelection(){
+  const prev = Object.assign({}, state.selection);
+  const mode = state.mode;
+  const yearVal = $('yearSel') ? $('yearSel').value : prev.year;
+  const monthVal = $('monthSel') ? $('monthSel').value : prev.month;
+  const weekVal = $('weekSel') ? $('weekSel').value : prev.weekStart;
+  const dayVal = $('daySel') ? $('daySel').value : prev.day;
+  const rangeStartVal = $('rangeStart') ? $('rangeStart').value : prev.start;
+  const rangeEndVal = $('rangeEnd') ? $('rangeEnd').value : prev.end;
+
+  buildSelectors();
+  state.mode = mode;
+  state.selection = Object.assign(state.selection, prev);
+
+  if ($('yearSel')) $('yearSel').value = yearVal || prev.year || state.selection.year || '';
+  if (typeof state.renderMonthOptions === 'function') state.renderMonthOptions($('yearSel') ? $('yearSel').value : yearVal);
+  if ($('monthSel')) $('monthSel').value = monthVal || prev.month || state.selection.month || '';
+  if (typeof state.renderWeekOptions === 'function') state.renderWeekOptions(($('yearSel') ? $('yearSel').value : yearVal), ($('monthSel') ? $('monthSel').value : monthVal), weekVal || prev.weekStart || null);
+  if ($('weekSel') && weekVal && Array.from($('weekSel').options).some(o => o.value === weekVal)) $('weekSel').value = weekVal;
+  if ($('daySel') && dayVal) $('daySel').value = dayVal;
+  if ($('rangeStart') && rangeStartVal) $('rangeStart').value = rangeStartVal;
+  if ($('rangeEnd') && rangeEndVal) $('rangeEnd').value = rangeEndVal;
+  if (typeof syncModeUI === 'function') syncModeUI();
+}
+
+async function ensureDataForMonthKeys(monthKeys, options={}){
+  const silent = !!(options && options.background);
+  const files = daxiFilesForMonthKeys(monthKeys).filter(f => !(state.loadedDataFiles && state.loadedDataFiles.has(f)));
+  if (!files.length) return;
+
+  if (!silent) $('dataStatus').innerHTML = `<span class="loader"></span> 載入資料中（${Array.from(new Set(monthKeys)).join(', ')}）...`;
+  const parsed = await parseDaxiFiles(files);
+  mergeParsedDataIntoState(parsed.sum, parsed.det, parsed.halfDet, parsed.reasons, parsed.top20);
+  state.loadedDataFiles = state.loadedDataFiles || new Set();
+  for (const f of parsed.loadedFiles) state.loadedDataFiles.add(f);
+  state.loadErrors = Array.from(new Set([...(state.loadErrors || []), ...(parsed.loadErrors || [])]));
+  state.jfmIndex = buildJfmIndex((state.manifestAllFiles || state.manifestFiles || []).filter(isJfmFile));
+  rebuildSelectorsPreservingSelection();
+
+  if (!silent) {
+    const failCount = parsed.loadErrors.length;
+    $('dataStatus').textContent = failCount
+      ? `資料已載入（部分失敗 ${failCount}）`
+      : `資料已載入（目前已讀 ${state.loadedDataFiles.size} 份檔案）`;
+  }
+}
+
+async function ensureDataForCurrentSelection(){
+  const keys = computeNeededMonthKeysFromUI();
+  if (!keys.length) return;
+  await ensureDataForMonthKeys(Array.from(new Set(keys)), {background:false});
+}
+
+function startBackgroundLoadRemainingData(){
+  if (state._backgroundDataLoading) return;
+  const all = (state.manifestAllFiles || state.manifestFiles || []).filter(f => isWasteFile(f) || isJfmFile(f));
+  const remaining = all.filter(f => !(state.loadedDataFiles && state.loadedDataFiles.has(f)));
+  if (!remaining.length) return;
+
+  state._backgroundDataLoading = true;
+  (async () => {
+    const monthKeys = getManifestMonthKeysFromFiles(remaining);
+    for (const mk of monthKeys) {
+      try {
+        await ensureDataForMonthKeys([mk], {background:true});
+      } catch (e) {
+        console.warn('背景月份載入失敗：' + mk, e);
+      }
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    state._backgroundDataLoading = false;
+    state.backgroundLoadDone = true;
+    const el = $('dataStatus');
+    if (el) {
+      const failCount = Array.isArray(state.loadErrors) ? state.loadErrors.length : 0;
+      el.textContent = failCount
+        ? `背景載入完成（已讀 ${state.loadedDataFiles.size} 份檔案，部分失敗 ${failCount}）`
+        : `已完成所有月份背景載入（${state.loadedDataFiles.size} 份檔案）`;
+    }
+    try { renderAll(); if (state.selectedKey) renderSelectedItem(); } catch(e){}
+  })();
+}
 
 // ---------------- JFM 檔名索引（週別 / 月別） ----------------
 function baseName(p){ return String(p || '').split('/').pop(); }
@@ -2825,7 +2997,9 @@ async function loadAllData() {
 
   const wasteFiles = filesForLoad.filter(isWasteFile);
   const jfmFiles = filesForLoad.filter(isJfmFile);
-  state.jfmIndex = buildJfmIndex(jfmFiles);
+  state.loadedDataFiles = new Set();
+  state.loadErrors = [];
+  state.jfmIndex = buildJfmIndex(files.filter(isJfmFile));
 
   const loadErrors = [];
   let sum = [];
@@ -2867,6 +3041,9 @@ async function loadAllData() {
     }
   }
 
+  state.loadedDataFiles = new Set(filesForLoad.filter(f => !loadErrors.includes(f)));
+  state.loadErrors = loadErrors.slice();
+
   // dedupe summary by date (keep last)
   const m = new Map();
   for (const r of sum) m.set(r.date, r);
@@ -2906,18 +3083,22 @@ async function loadAllData() {
 }
 
 function buildSelectors() {
-  const years = Array.from(new Set(state.summary.map(r => r.date.slice(0,4)))).sort();
+  const yearSet = new Set(state.summary.map(r => r.date.slice(0,4)));
+  for (const mk of getManifestMonthKeysFromFiles()) yearSet.add(String(mk).slice(0,4));
+  const years = Array.from(yearSet).filter(Boolean).sort();
   state.years = years;
   $('yearSel').innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 
-  // months by year (only show months with data)
+  // months by year (已載入資料 + manifest 中可用月份)
   const monthsByYear = new Map();
-  for (const r of state.summary) {
-    const y = r.date.slice(0,4);
-    const mm = r.date.slice(5,7);
+  const addMonth = (y, mm) => {
+    if (!y || !mm) return;
+    mm = String(mm).padStart(2,'0');
     if (!monthsByYear.has(y)) monthsByYear.set(y, new Set());
     monthsByYear.get(y).add(mm);
-  }
+  };
+  for (const r of state.summary) addMonth(r.date.slice(0,4), r.date.slice(5,7));
+  for (const mk of getManifestMonthKeysFromFiles()) addMonth(String(mk).slice(0,4), String(mk).slice(5,7));
   state.monthsByYear = {};
   for (const [y, set] of monthsByYear.entries()) {
     state.monthsByYear[y] = Array.from(set).sort();
@@ -2943,6 +3124,11 @@ function buildSelectors() {
       const e = new Date(s);
       e.setDate(e.getDate() + 6);
       wkMap.set(key, { start: key, end: toISO(e) });
+    }
+  }
+  if (state.jfmIndex && Array.isArray(state.jfmIndex.weeks)) {
+    for (const w of state.jfmIndex.weeks) {
+      if (w && w.startISO && w.endISO && !wkMap.has(w.startISO)) wkMap.set(w.startISO, {start:w.startISO, end:w.endISO});
     }
   }
   state.weeksAll = Array.from(wkMap.values()).sort((a,b)=>safeLocaleCompare(a.start,b.start));
@@ -3209,12 +3395,18 @@ function aggregateSeries(rows, metric, gran, start = null, end = null) {
   return { labels, values, keys };
 }
 
+function shouldUsePostMayOveruseLayout(rows){
+  return isMay2026OrLaterRange() || !!state._forceMayGroupLayout || (Array.isArray(rows) && rows.some(r => safeStr(r && r.date) >= '2026-05-01'));
+}
+
 function updateKPICards(srows) {
   const sum = (k) => srows.reduce((a,b)=>a + (Number(b[k])||0), 0);
 
   const totalSales = sum('sales');
   const totalScrapAmt = sum('scrapAmt');
   const totalOverAmt = sum('overuseAmt');
+  const totalOverAmtB = totalOverAmt - totalScrapAmt;
+  const usePostMay = shouldUsePostMayOveruseLayout(srows);
 
   // 以區間加總後重新計算「整段期間」的比率（避免直接加總每日百分比）
   const scrapRate = (Number.isFinite(totalSales) && totalSales > 0) ? (totalScrapAmt / totalSales) : NaN;
@@ -3225,6 +3417,13 @@ function updateKPICards(srows) {
   $('kpiScrapRate').textContent = fmtPct(scrapRate);
   $('kpiOverAmt').textContent = fmtMoney(totalOverAmt);
   $('kpiOverRate').textContent = fmtPct(overRate);
+
+  const overAmtLabel = $('kpiOverAmtLabel');
+  const overAmtBCard = $('kpiOverAmtBCard');
+  const overAmtB = $('kpiOverAmtB');
+  if (overAmtLabel) overAmtLabel.textContent = usePostMay ? '超用金額A(多展)' : '超用金額(多展-報廢)';
+  if (overAmtBCard) overAmtBCard.classList.toggle('hidden', !usePostMay);
+  if (overAmtB) overAmtB.textContent = fmtMoney(totalOverAmtB);
 
   // Top cards：金額用「加總」，構成比用「加總後再計算」(以分母加總權重)
   const totalTopScrapAmt = sum('topScrapAmt');
@@ -4178,7 +4377,7 @@ function getOutputSourceLabel(r){
 function getMayGroupSourceColumn(sortValue){
   const sort = sortValue || ($('sortSel') ? $('sortSel').value : '');
   if (sort === 'prodRate') return { label:'差異來自', type:'source' };
-  if (['scrapAmt','scrapRate','overuseAmt','overuseRate'].includes(sort)) return { label:'超用來自', type:'source' };
+  if (['scrapAmt','scrapRate','overuseAmt','overuseAmtB','overuseRate'].includes(sort)) return { label:'超用來自', type:'source' };
   return null;
 }
 function numericOrNull(v){
@@ -4206,41 +4405,46 @@ function getMayGroupColumns(sortValue){
       { label:'報廢金額', field:'scrapAmt', type:'money' }
     ];
   }
-  if (sort === 'overuseAmt' || sort === 'overuseRate') {
+  if (sort === 'overuseAmt' || sort === 'overuseAmtB' || sort === 'overuseRate') {
     return [
       { label:'超用數', field:'overuseQty', type:'qty' },
       { label:'超用率', field:'overuseRate', type:'rate' },
-      { label:'超用金額', field:'overuseAmt', type:'money' }
+      { label:'超用金額A(多展)', field:'overuseAmtA', type:'money' },
+      { label:'超用金額B(多展-報廢)', field:'overuseAmtB', type:'money' }
     ];
   }
   if (sort === 'expandRate') {
     return [
       { label:'生管展開量', field:'expandQty', type:'qty' },
       { label:'生管展開率', field:'expandRate', type:'rate' },
-      { label:'超用金額', field:'overuseAmt', type:'money' }
+      { label:'超用金額A(多展)', field:'overuseAmtA', type:'money' },
+      { label:'超用金額B(多展-報廢)', field:'overuseAmtB', type:'money' }
     ];
   }
   if (sort === 'actualRate') {
     return [
       { label:'生產實際產出量', field:'actualQty', type:'qty' },
       { label:'生產實際產出率', field:'actualRate', type:'rate' },
-      { label:'超用金額', field:'overuseAmt', type:'money' }
+      { label:'超用金額A(多展)', field:'overuseAmtA', type:'money' },
+      { label:'超用金額B(多展-報廢)', field:'overuseAmtB', type:'money' }
     ];
   }
-  if (sort === 'refillQty' || sort === 'refillRateNew') {
+  if (sort === 'refillQty' || sort === 'refillRate') {
     return [
       { label:'生產補單量', field:'refillQtyNew', type:'qty' },
       { label:'生產補單率', field:'refillRateNew', type:'rate' },
-      { label:'超用金額', field:'overuseAmt', type:'money' }
+      { label:'超用金額A(多展)', field:'overuseAmtA', type:'money' },
+      { label:'超用金額B(多展-報廢)', field:'overuseAmtB', type:'money' }
     ];
   }
+  // prodRate = 總產出率
   return [
     { label:'總產出量', field:'output', type:'qty' },
     { label:'總產出率', field:'prodRate', type:'rate' },
-    { label:'超用金額', field:'overuseAmt', type:'money' }
+    { label:'超用金額A(多展)', field:'overuseAmtA', type:'money' },
+    { label:'超用金額B(多展-報廢)', field:'overuseAmtB', type:'money' }
   ];
 }
-
 function fmtMayGroupCell(row, col){
   const v = row[col.field];
   if (col.type === 'rate') return v == null ? '—' : fmtPct(v);
@@ -4271,7 +4475,7 @@ function buildGroupHeaderHTML(){
     <th class="text-right">實際生產率</th>
     <th id="groupDiffHeader" class="text-right">${isRate ? '差異率' : '差異金額'}</th>
     <th id="groupScrapHeader" class="text-right">${isRate ? '報廢率' : '報廢金額'}</th>
-    <th id="groupOveruseHeader" class="text-right">${isRate ? '超用率' : '超用金額'}</th>
+    <th id="groupOveruseHeader" class="text-right">${isRate ? '超用率' : '超用金額(多展-報廢)'}</th>
   `;
 }
 
@@ -4290,6 +4494,16 @@ function syncMayGroupColumnsAndSort(){
       opt.hidden = !isNew;
       opt.style.display = !isNew ? 'none' : '';
     });
+
+    const overAOpt = sel.querySelector('option[value="overuseAmt"]');
+    if (overAOpt) overAOpt.textContent = isNew ? '超用金額A（高→低）' : '超用金額(多展-報廢)（高→低）';
+    const overBOpt = sel.querySelector('option[value="overuseAmtB"]');
+    if (overBOpt) {
+      overBOpt.disabled = !isNew;
+      overBOpt.hidden = !isNew;
+      overBOpt.style.display = !isNew ? 'none' : '';
+    }
+
     const prodOpt = sel.querySelector('option[value="prodRate"]');
     if (prodOpt) prodOpt.textContent = isNew ? '總產出率（高→低）' : '實際生產率（高→低）';
     if (isNew && (sel.value === 'diffAmt' || sel.value === 'diffRate')) sel.value = 'prodRate';
@@ -4594,6 +4808,8 @@ function aggregateGroups(drows) {
     o.actualRate = o.hasNewDetail ? (o.order > 0 ? (o.actualQty / o.order) : (o.actualRateDenom > 0 ? o.actualRateNumer / o.actualRateDenom : null)) : null;
     o.refillRateNew = o.hasNewDetail ? (o.order > 0 ? (o.refillQtyNew / o.order) : (o.refillRateDenom > 0 ? o.refillRateNumer / o.refillRateDenom : null)) : null;
     o.unitPrice = o.unitPriceN ? (o.unitPriceSum / o.unitPriceN) : null;
+    o.overuseAmtA = Number(o.overuseAmt) || 0;
+    o.overuseAmtB = (Number(o.overuseAmt) || 0) - (Number(o.scrapAmt) || 0);
   }
   return out;
 }
@@ -4613,6 +4829,8 @@ function applyGroupFilterAndRender(drows) {
     state.groupRows = aggregateGroups(drows);
     state._groupRangeKey = rangeKey;
   }
+  state._forceMayGroupLayout = isMay2026OrLaterRange() || (Array.isArray(drows) && drows.some(r => safeStr(r.date) >= '2026-05-01'));
+
   syncGroupQtyRateHeaders();
   const kwProd = $('productSearch').value.trim().toLowerCase();
   const kwSemi = $('semiSearch').value.trim().toLowerCase();
@@ -4635,7 +4853,8 @@ function applyGroupFilterAndRender(drows) {
   if (sort === 'actualRate') filtered.sort(byNullable('actualRate'));
   if (sort === 'scrapAmt') filtered.sort(by('scrapAmt'));
   if (sort === 'scrapRate') filtered.sort(byNullable('scrapRate'));
-  if (sort === 'overuseAmt') filtered.sort(by('overuseAmt'));
+  if (sort === 'overuseAmt') filtered.sort(by('overuseAmtA'));
+  if (sort === 'overuseAmtB') filtered.sort(by('overuseAmtB'));
   if (sort === 'overuseRate') filtered.sort(byNullable('overuseRate'));
   if (sort === 'refillQty') filtered.sort(isNewLayout ? by('refillQtyNew') : by('refillQty'));
   if (sort === 'refillRateNew') filtered.sort(byNullable('refillRateNew'));
@@ -5314,7 +5533,7 @@ function renderTop20Expand(){
 }
 
 
-function applySelectionFromUI(){
+async function applySelectionFromUI(){
   // Sync state.selection from current UI controls and refresh views.
   try{
     const year = $('yearSel') ? $('yearSel').value : state.selection.year;
@@ -5350,6 +5569,8 @@ function applySelectionFromUI(){
     } else if (state.mode === 'year'){
       // year mode uses year only
     }
+    await ensureDataForCurrentSelection();
+
     // Recompute active JFM source(s) for reason cards / Top20 based on filename rules
     state.activeJfmSources = computeActiveJfmSources();
 
@@ -5387,9 +5608,10 @@ async function init(force=false) {
     syncModeUI();
     bindAutoApply();
     // auto-apply current selector values
-    applySelectionFromUI();
+    await applySelectionFromUI();
     // renderAll() is invoked by applySelectionFromUI()
-state.loaded = true;
+    state.loaded = true;
+    startBackgroundLoadRemainingData();
   } catch (e) {
     console.error(e);
     $('dataStatus').textContent = '載入失敗：' + e.message;
@@ -5550,7 +5772,7 @@ init();
       <th class="text-right">實際生產率</th>
       <th id="groupDiffHeader" class="text-right">${isRate ? '差異率' : '差異金額'}</th>
       <th id="groupScrapHeader" class="text-right">${isRate ? '報廢率' : '報廢金額'}</th>
-      <th id="groupOveruseHeader" class="text-right">${isRate ? '超用率' : '超用金額'}</th>
+      <th id="groupOveruseHeader" class="text-right">${isRate ? '超用率' : '超用金額(多展-報廢)'}</th>
     `;
   };
 
