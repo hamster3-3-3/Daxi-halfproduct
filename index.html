@@ -4113,12 +4113,10 @@ function renderAll() {
   renderKPIChart(srowsChart, start, end);
   renderRightChart(srowsChart, start, end);
     // 半成品展開：以 報廢管理表(合計) 資料為主
-  let halfRowsChart = filterByRange(state.halfDetails||[], start, end);
-  if (state.mode === 'month') {
-    const ex = expandToWholeWeeks(start, end);
-    halfRowsChart = filterByRange(state.halfDetails||[], ex.start, ex.end);
-  }
-  applyGroupFilterAndRender(halfRowsChart);
+  // 半成品展開一律使用目前選取的嚴格日期範圍。
+  // 月別 = 該月 1 日～該月最後一日，不再因週別跨月而納入前／後月資料。
+  const halfRowsStrict = filterByRange(state.halfDetails||[], start, end);
+  applyGroupFilterAndRender(halfRowsStrict);
   // If an item is selected, keep its daily trend/detail in sync with the current time range.
   if (state.selectedKey) {
     renderSelectedItem();
@@ -4145,13 +4143,9 @@ function renderSelectedItem() {
   }
   const {start, end} = getDateRange();
 
-  // 月別：趨勢圖需納入跨月週（只要週區間與該月有交集，就計入整週資料）
-  let chartStart = start, chartEnd = end;
-  if (state.mode === 'month') {
-    const ex = expandToWholeWeeks(start, end);
-    chartStart = ex.start;
-    chartEnd = ex.end;
-  }
+  // 半成品展開的商品趨勢／明細同樣使用嚴格選取區間。
+  // 月別固定為該月 1 日～月末，不延伸到跨月週。
+  const chartStart = start, chartEnd = end;
 
   const sourceRows = (Array.isArray(state.halfDetails) && state.halfDetails.length)
     ? state.halfDetails
@@ -4161,7 +4155,7 @@ function renderSelectedItem() {
   const drowsBase = filterByRange(sourceRows, start, end)
     .filter(r => (r.product + '||' + r.semi) === state.selectedKey);
 
-  // 趨勢圖：使用擴展後區間
+  // 趨勢圖：使用與半成品展開相同的嚴格選取區間
   const drowsChart = filterByRange(sourceRows, chartStart, chartEnd)
     .filter(r => (r.product + '||' + r.semi) === state.selectedKey);
 
@@ -5153,8 +5147,8 @@ function aggregateSelectedDailyRows(rows){
 function renderSelectedItem() {
   if (!state.selectedKey) { $('itemPanel').classList.add('hidden'); return; }
   const {start, end} = getDateRange();
-  let chartStart = start, chartEnd = end;
-  if (state.mode === 'month') { const ex = expandToWholeWeeks(start, end); chartStart = ex.start; chartEnd = ex.end; }
+  // 月別固定為該月 1 日～月末，不延伸到跨月週。
+  const chartStart = start, chartEnd = end;
   const sourceRows = (Array.isArray(state.halfDetails) && state.halfDetails.length) ? state.halfDetails : state.details;
   const drowsBase = filterByRange(sourceRows, start, end).filter(r => (r.product + '||' + r.semi) === state.selectedKey);
   const drowsChart = filterByRange(sourceRows, chartStart, chartEnd).filter(r => (r.product + '||' + r.semi) === state.selectedKey);
