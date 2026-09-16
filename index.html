@@ -499,7 +499,7 @@ function fallbackScanAmountRight(sheet, r, c){
 </style>
 
   <!-- Local vendor scripts (GitHub Pages 同網域) -->
-  <script src="./xlsx.full.min.js"></script>
+
   <script src="./chart.umd.min.js"></script>
 
   <script>
@@ -1283,6 +1283,7 @@ async function tryLoadLaunchMap(){
       const r = await fetch(url, {cache:'no-store'});
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const ab = await r.arrayBuffer();
+      await ensureXlsxReady();
       const wb = XLSX.read(ab, {type:'array', cellDates:true});
       const mp = parseLaunchMapFromWB(wb);
       state.launch.map = mp;
@@ -1586,6 +1587,43 @@ function mergeParsedDataIntoState(sum=[], det=[], halfDet=[], reasons=[], top20=
   }
 }
 
+let jsonIndex = {files:{}};
+function fetchWithTimeout(url, options={}, timeoutMs=20000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  return fetch(url,{...options,signal:controller.signal}).finally(()=>clearTimeout(timer));
+}
+let xlsxPromise;
+async function ensureXlsxReady(){
+  if(window.XLSX) return;
+  if(!xlsxPromise) xlsxPromise=ensureLibGlobal('XLSX',['./xlsx.full.min.js','https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js']).catch(e=>{xlsxPromise=null;throw e;});
+  return xlsxPromise;
+}
+async function loadJsonIndex(){
+  try{const r=await fetchWithTimeout('./data/json-manifest.json',{cache:'no-cache'},10000);if(!r.ok)throw Error(r.status);jsonIndex=await r.json();}
+  catch(e){jsonIndex={files:{}};console.warn('JSON 索引尚未提供，使用 Excel',e);}
+}
+async function loadPreparsedJson(f){
+  const entry=jsonIndex.files?.[f];if(!entry)return null;
+  try{
+    const url='./'+encodePath(entry.json)+'?v='+encodeURIComponent(entry.sourceSha256+'-'+jsonIndex.parserHash);
+    const r=await fetchWithTimeout(url,{cache:'force-cache'},20000);if(!r.ok)throw Error(r.status);
+    const j=await r.json();
+    if(j.source!==f||j.sourceSha256!==entry.sourceSha256||['summary','details','halfDetails','reasonWeeks','top20Entries'].some(k=>!Array.isArray(j[k])))throw Error('JSON 格式不符');
+    return j;
+  }catch(e){console.warn('JSON 讀取失敗，使用 Excel',f,e);return null;}
+}
+
+async function readDaxiPayload(f){
+  const cached=await loadPreparsedJson(f);if(cached)return cached;
+  await ensureXlsxReady();
+  const r=await fetch('./data/'+encodePath(f),{cache:'no-store'});
+  if(!r.ok)throw Error('讀取失敗：'+f);
+  const wb=XLSX.read(await r.arrayBuffer(),{type:'array',cellDates:true});
+  const waste=isWasteFile(f);
+  return {summary:waste?parseSummaryFromWB(wb,f):[],details:waste?parseDetailsFromWB(wb,f):[],halfDetails:waste?parseHalfDetailsFromWB(wb,f):[],reasonWeeks:waste?[]:(parseReasonFromWB(wb,f)||[]),top20Entries:waste?[]:parseTop20FromWB(wb,f)};
+}
+
 async function parseDaxiFiles(files){
   const loadErrors = [];
   const loadedFiles = [];
@@ -1593,19 +1631,9 @@ async function parseDaxiFiles(files){
 
   for (const f of (files || [])) {
     try {
-      const url = './data/' + encodePath(f);
-      const r = await fetch(url, {cache:'no-store'});
-      if (!r.ok) throw new Error('讀取失敗：' + f);
-      const ab = await r.arrayBuffer();
-      const wb = XLSX.read(ab, {type:'array', cellDates:true});
-      if (isWasteFile(f)) {
-        sum = sum.concat(parseSummaryFromWB(wb, f));
-        det = det.concat(parseDetailsFromWB(wb, f));
-        halfDet = halfDet.concat(parseHalfDetailsFromWB(wb, f));
-      } else if (isJfmFile(f)) {
-        reasons = reasons.concat(parseReasonFromWB(wb, f) || []);
-        top20 = top20.concat(parseTop20FromWB(wb, f));
-      }
+      const j=await readDaxiPayload(f);
+      sum=sum.concat(j.summary);det=det.concat(j.details);halfDet=halfDet.concat(j.halfDetails);
+      reasons=reasons.concat(j.reasonWeeks);top20=top20.concat(j.top20Entries);
       loadedFiles.push(f);
     } catch (e) {
       console.warn(e);
@@ -3127,10 +3155,7 @@ async function loadAllData() {
   $('dataStatus').classList.add('chip');
 
   // Ensure libs
-  await ensureLibGlobal('XLSX', [
-    './xlsx.full.min.js',
-    'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js'
-  ]);
+  await loadJsonIndex();
   await ensureLibGlobal('Chart', [
     './chart.umd.min.js',
     'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
@@ -3167,14 +3192,8 @@ async function loadAllData() {
   // 只解析「報廢管理表」的日別資料，避免 JFM 檔造成日別去重覆蓋不一致
   for (const f of wasteFiles) {
     try{
-      const url = './data/' + encodePath(f);
-      const r = await fetch(url, {cache:'no-store'});
-      if (!r.ok) throw new Error('讀取失敗：' + f);
-      const ab = await r.arrayBuffer();
-      const wb = XLSX.read(ab, {type:'array', cellDates:true});
-      sum = sum.concat(parseSummaryFromWB(wb, f));
-      det = det.concat(parseDetailsFromWB(wb, f));
-      halfDet = halfDet.concat(parseHalfDetailsFromWB(wb, f));
+      const j=await readDaxiPayload(f);
+      sum=sum.concat(j.summary);det=det.concat(j.details);halfDet=halfDet.concat(j.halfDetails);
     }catch(e){
       console.warn(e);
       loadErrors.push(f);
@@ -3186,13 +3205,8 @@ async function loadAllData() {
   // 解析所有 JFM 檔（原因卡片 + 前20大 + 重複次數判定需要歷史）
   for (const f of jfmFiles) {
     try{
-      const url = './data/' + encodePath(f);
-      const r = await fetch(url, {cache:'no-store'});
-      if (!r.ok) throw new Error('讀取失敗：' + f);
-      const ab = await r.arrayBuffer();
-      const wb = XLSX.read(ab, {type:'array', cellDates:true});
-      reasons = reasons.concat(parseReasonFromWB(wb, f) || []);
-      top20 = top20.concat(parseTop20FromWB(wb, f));
+      const j=await readDaxiPayload(f);
+      reasons=reasons.concat(j.reasonWeeks);top20=top20.concat(j.top20Entries);
     }catch(e){
       console.warn(e);
       loadErrors.push(f);

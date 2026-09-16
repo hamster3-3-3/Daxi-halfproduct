@@ -1,0 +1,371 @@
+{
+  "schemaVersion": 1,
+  "parserHash": "a90ac57fea1a18ca9d6ec59dc52ec2948de7475fd4ead4a808eb0163c0a7316f",
+  "files": {
+    "2025/07/114.07.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2025/07/114.07.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "f14d4fbd2cb5658293826f30344e89671419a990f5a1b4e4de24bece63d64945",
+      "jsonBytes": 4804827
+    },
+    "2025/08/114.08.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2025/08/114.08.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "5e20c970b7a4aba1ac67697bfd9d07519327ae9f3c8d749c7f791c437630b2a0",
+      "jsonBytes": 11279
+    },
+    "2025/09/114.09.01-30屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2025/09/114.09.01-30屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "7b6d95f8e9f818d66c51119735a62cfc8dd41e0e15a54aa0acf16a81d3930f7b",
+      "jsonBytes": 10953
+    },
+    "2025/09/【JFM指導】大溪廠生產管理報表2025.09.xlsx": {
+      "json": "data-json/2025/09/【JFM指導】大溪廠生產管理報表2025.09.json",
+      "sourceSha256": "9bcf9addc0fda073d174b90780faf9651e640016a2c035a9fccf6ad734f02fd0",
+      "jsonBytes": 254
+    },
+    "2025/09/【JFM指導】大溪廠生產管理報表20250902-0908.xlsx": {
+      "json": "data-json/2025/09/【JFM指導】大溪廠生產管理報表20250902-0908.json",
+      "sourceSha256": "ce5de57f7225f471bf48389becb7cf4afff57aba5ec5e84458178e67f3c20710",
+      "jsonBytes": 23003
+    },
+    "2025/09/【JFM指導】大溪廠生產管理報表20250909-0915.xlsx": {
+      "json": "data-json/2025/09/【JFM指導】大溪廠生產管理報表20250909-0915.json",
+      "sourceSha256": "734fb117e9d3beaf11ce5f2d83d87bf670712e974907b1a4a142abb2fa7e471f",
+      "jsonBytes": 26885
+    },
+    "2025/09/【JFM指導】大溪廠生產管理報表20250923-0929.xlsx": {
+      "json": "data-json/2025/09/【JFM指導】大溪廠生產管理報表20250923-0929.json",
+      "sourceSha256": "eaafaa92a6b7865fe962baf0852b594d624d15b87aaea0952526aaebf4e28a5d",
+      "jsonBytes": 34905
+    },
+    "2025/09/【JFM指導】大溪廠生產管理報表20250930-1006.xlsx": {
+      "json": "data-json/2025/09/【JFM指導】大溪廠生產管理報表20250930-1006.json",
+      "sourceSha256": "63b998a8be21c6210d4131448eca7217ee5d721aaf77f3d18de65a7cc86783e4",
+      "jsonBytes": 38861
+    },
+    "2025/10/114.10.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2025/10/114.10.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "bc2071c95ed7e2520b676e1a06c053cc0c618dc995aea55da2c6293849321ded",
+      "jsonBytes": 4269833
+    },
+    "2025/10/【JFM指導】大溪廠生產管理報表2025.10.xlsx": {
+      "json": "data-json/2025/10/【JFM指導】大溪廠生產管理報表2025.10.json",
+      "sourceSha256": "c9aaab1a270d8ba5b4dfc7351943f6ee97509bd930ecefd8551c413a5cd637f3",
+      "jsonBytes": 53563
+    },
+    "2025/10/【JFM指導】大溪廠生產管理報表20251007-1013.xlsx": {
+      "json": "data-json/2025/10/【JFM指導】大溪廠生產管理報表20251007-1013.json",
+      "sourceSha256": "1d1f7f4fa2b724f5c4fc5e9d31b56e33908cbe5f18366c1cd1e6bb7fed174889",
+      "jsonBytes": 42749
+    },
+    "2025/10/【JFM指導】大溪廠生產管理報表20251014-1020.xlsx": {
+      "json": "data-json/2025/10/【JFM指導】大溪廠生產管理報表20251014-1020.json",
+      "sourceSha256": "f192d29df7b41e631133de6e87a24b128271297dbe1ffd407f560ca03f6a0c53",
+      "jsonBytes": 46699
+    },
+    "2025/10/【JFM指導】大溪廠生產管理報表20251021-1027.xlsx": {
+      "json": "data-json/2025/10/【JFM指導】大溪廠生產管理報表20251021-1027.json",
+      "sourceSha256": "aa546d49b13dcdbeceddf7d960e35dceded93a2f36adea924fe921150d124c7c",
+      "jsonBytes": 50653
+    },
+    "2025/10/【JFM指導】大溪廠生產管理報表20251028-1103.xlsx": {
+      "json": "data-json/2025/10/【JFM指導】大溪廠生產管理報表20251028-1103.json",
+      "sourceSha256": "e29d02c9c994e8cf0a41d276408868007e620c1e765c8cd4b94140b29b7e6092",
+      "jsonBytes": 54553
+    },
+    "2025/11/114.11.01-30屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2025/11/114.11.01-30屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "cb03029fb1ee2bf3f46ac888ae5f143123d672cf386ef03baa36e48ef8149cc0",
+      "jsonBytes": 4338441
+    },
+    "2025/11/【JFM指導】大溪廠生產管理報表114.11月.xlsx": {
+      "json": "data-json/2025/11/【JFM指導】大溪廠生產管理報表114.11月.json",
+      "sourceSha256": "de57574b60a00062f19fce40401a54ba56f158c0c3859107b71f6bc6d5af0b89",
+      "jsonBytes": 69333
+    },
+    "2025/11/【JFM指導】大溪廠生產管理報表20251104-1110.xlsx": {
+      "json": "data-json/2025/11/【JFM指導】大溪廠生產管理報表20251104-1110.json",
+      "sourceSha256": "3ba6aeff4ab026ce3bac2ed80a6d6ce25c08b6dce3a9eedcbcecd5c2e67a480c",
+      "jsonBytes": 58494
+    },
+    "2025/11/【JFM指導】大溪廠生產管理報表20251111-1117.xlsx": {
+      "json": "data-json/2025/11/【JFM指導】大溪廠生產管理報表20251111-1117.json",
+      "sourceSha256": "209e3213bae20204bf390722564552c32c96656bcf195578801146b1a08400ac",
+      "jsonBytes": 62306
+    },
+    "2025/11/【JFM指導】大溪廠生產管理報表20251118-1124.xlsx": {
+      "json": "data-json/2025/11/【JFM指導】大溪廠生產管理報表20251118-1124.json",
+      "sourceSha256": "aefc57b6aef1007bdc9f3a3dc4803644e9b5e78cd30b5906c9173af36bbb6fa7",
+      "jsonBytes": 66204
+    },
+    "2025/11/【JFM指導】大溪廠生產管理報表20251125-1201.xlsx": {
+      "json": "data-json/2025/11/【JFM指導】大溪廠生產管理報表20251125-1201.json",
+      "sourceSha256": "a93b09e7aa4bad36ee78e6ba3351998b21000f56e67328b3aba1b662bcc24384",
+      "jsonBytes": 70185
+    },
+    "2025/12/114.12.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2025/12/114.12.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "d0ad4c038e385bb642d7626d421e333726732c2020d099ecb1dc997b4c286d8e",
+      "jsonBytes": 4207443
+    },
+    "2025/12/【JFM指導】大溪廠生產管理報表2025.12.xlsx": {
+      "json": "data-json/2025/12/【JFM指導】大溪廠生產管理報表2025.12.json",
+      "sourceSha256": "e35f4b89d22ac7682e0d9311cd83debe7e3f10aaaa3aeca798781578efbbcaf7",
+      "jsonBytes": 172280
+    },
+    "2025/12/【JFM指導】大溪廠生產管理報表20251202-1208.xlsx": {
+      "json": "data-json/2025/12/【JFM指導】大溪廠生產管理報表20251202-1208.json",
+      "sourceSha256": "d7d1a2d90b0a17134d39c23c10bb07e39eb1077ab36207f8dfeda51602a9ba15",
+      "jsonBytes": 92216
+    },
+    "2025/12/【JFM指導】大溪廠生產管理報表20251209-1215.xlsx": {
+      "json": "data-json/2025/12/【JFM指導】大溪廠生產管理報表20251209-1215.json",
+      "sourceSha256": "dfff48e07b90d1c9264183ad0dfb7437d4c6f918eafd82712d3fe8bb348ae748",
+      "jsonBytes": 118388
+    },
+    "2025/12/【JFM指導】大溪廠生產管理報表20251216-1222.xlsx": {
+      "json": "data-json/2025/12/【JFM指導】大溪廠生產管理報表20251216-1222.json",
+      "sourceSha256": "3bbee0ebedea834c1ac8d0f491ae814ca30e04dbf92e418973e3a9e0842922f0",
+      "jsonBytes": 144703
+    },
+    "2025/12/【JFM指導】大溪廠生產管理報表20251223-1229.xlsx": {
+      "json": "data-json/2025/12/【JFM指導】大溪廠生產管理報表20251223-1229.json",
+      "sourceSha256": "c8b57e22b8ae2af49667dc81b713819932050b6d2750aed70401a0b5e6c5b97e",
+      "jsonBytes": 170724
+    },
+    "2026/01/115.01.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/01/115.01.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "6155cbdf6b1c889fe3a50828eb545c57b6eedf8e51ded941d7610d7efb6822cf",
+      "jsonBytes": 3770515
+    },
+    "2026/01/【JFM指導】大溪廠生產管理報表20251230-20260105.xlsx": {
+      "json": "data-json/2026/01/【JFM指導】大溪廠生產管理報表20251230-20260105.json",
+      "sourceSha256": "6e3a062b727d186728954ff9766cb53f5f8566f7e312edba4d6410fbfcde4705",
+      "jsonBytes": 47586
+    },
+    "2026/01/【JFM指導】大溪廠生產管理報表2026.01.xlsx": {
+      "json": "data-json/2026/01/【JFM指導】大溪廠生產管理報表2026.01.json",
+      "sourceSha256": "fa0eeec24630558a4273274ca60f7d9b18e78ce41870485338c3e35b6c976107",
+      "jsonBytes": 154975
+    },
+    "2026/01/【JFM指導】大溪廠生產管理報表20260106-0112.xlsx": {
+      "json": "data-json/2026/01/【JFM指導】大溪廠生產管理報表20260106-0112.json",
+      "sourceSha256": "850c0c5952b5669118b2d81dc63bb637fe1e7cfb281cab6b4f76909083c9dd3f",
+      "jsonBytes": 73403
+    },
+    "2026/01/【JFM指導】大溪廠生產管理報表20260113-0119.xlsx": {
+      "json": "data-json/2026/01/【JFM指導】大溪廠生產管理報表20260113-0119.json",
+      "sourceSha256": "78c1bb32a558646a6e510241d2a306d16f11ab318318c1c6296cf22bb1bb1a03",
+      "jsonBytes": 99409
+    },
+    "2026/01/【JFM指導】大溪廠生產管理報表20260120-0126.xlsx": {
+      "json": "data-json/2026/01/【JFM指導】大溪廠生產管理報表20260120-0126.json",
+      "sourceSha256": "8fe3d51c0d118850056ce5402f632c6f461a3ede86dc2e57a53a39a6e83121ae",
+      "jsonBytes": 126080
+    },
+    "2026/01/【JFM指導】大溪廠生產管理報表20260127-0202.xlsx": {
+      "json": "data-json/2026/01/【JFM指導】大溪廠生產管理報表20260127-0202.json",
+      "sourceSha256": "8dd91215992b739d91662eff1dfab26f7920081b46ba944976d1a19cad835af6",
+      "jsonBytes": 152509
+    },
+    "2026/02/115.02.01-28屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/02/115.02.01-28屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "d78fc2161e42b3fffbc61eb265f31be3d39b3a3fd98a7adce2f4320f18a39d16",
+      "jsonBytes": 2997901
+    },
+    "2026/02/【JFM指導】大溪廠生產管理報表202602.xlsx": {
+      "json": "data-json/2026/02/【JFM指導】大溪廠生產管理報表202602.json",
+      "sourceSha256": "96384f11a6471c2b2eeb3e6a7c02a0ee67555f3c424ef8253a080a1e3c8fa212",
+      "jsonBytes": 130738
+    },
+    "2026/02/【JFM指導】大溪廠生產管理報表20260203-0209.xlsx": {
+      "json": "data-json/2026/02/【JFM指導】大溪廠生產管理報表20260203-0209.json",
+      "sourceSha256": "226e507e00ca50f937bf1bf6e3ed93b25a58a27f4c030982b4c6f81e7ce660d9",
+      "jsonBytes": 57529
+    },
+    "2026/02/【JFM指導】大溪廠生產管理報表20260210-0216.xlsx": {
+      "json": "data-json/2026/02/【JFM指導】大溪廠生產管理報表20260210-0216.json",
+      "sourceSha256": "9eb8688aae117df78d6d160849ace20972a016c0f216c627f2cda587d703077a",
+      "jsonBytes": 85847
+    },
+    "2026/02/【JFM指導】大溪廠生產管理報表20260217-0223.xlsx": {
+      "json": "data-json/2026/02/【JFM指導】大溪廠生產管理報表20260217-0223.json",
+      "sourceSha256": "69b58d380dd0b9595df85694b51a4b59b4153148df7d8990a73c403156532d21",
+      "jsonBytes": 104724
+    },
+    "2026/02/【JFM指導】大溪廠生產管理報表20260224-0302.xlsx": {
+      "json": "data-json/2026/02/【JFM指導】大溪廠生產管理報表20260224-0302.json",
+      "sourceSha256": "149396ddff847b3fc3f79ee8e467a9931f169040a49517b277181becf71742a2",
+      "jsonBytes": 128090
+    },
+    "2026/03/115.03.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/03/115.03.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "fa08b7119277d96e5efdb170d8f85cb2915fb49a9b6bbb4c531d255e25708c22",
+      "jsonBytes": 2795401
+    },
+    "2026/03/【JFM指導】大溪廠生產管理報表202603.xlsx": {
+      "json": "data-json/2026/03/【JFM指導】大溪廠生產管理報表202603.json",
+      "sourceSha256": "69750cdc1334be336253c350f75e2ed765d53b9f359dabcda1c661b5d293e3ef",
+      "jsonBytes": 152798
+    },
+    "2026/03/【JFM指導】大溪廠生產管理報表20260303-0309.xlsx": {
+      "json": "data-json/2026/03/【JFM指導】大溪廠生產管理報表20260303-0309.json",
+      "sourceSha256": "506f6129dfa9b0d0733efc829a641c2786f91454757f558e5fa381c867c5a978",
+      "jsonBytes": 60936
+    },
+    "2026/03/【JFM指導】大溪廠生產管理報表20260310-0316.xlsx": {
+      "json": "data-json/2026/03/【JFM指導】大溪廠生產管理報表20260310-0316.json",
+      "sourceSha256": "86d34d4580c01a4fd2d28acfc8a3ba3bfa2f62e2083808a9ea3a43219ff682d6",
+      "jsonBytes": 84302
+    },
+    "2026/03/【JFM指導】大溪廠生產管理報表20260317-0323.xlsx": {
+      "json": "data-json/2026/03/【JFM指導】大溪廠生產管理報表20260317-0323.json",
+      "sourceSha256": "f7f4454cf8ade86ee2f33ac7f2a81b736c9ff20d19328c9422e4fb86197ccd87",
+      "jsonBytes": 107806
+    },
+    "2026/03/【JFM指導】大溪廠生產管理報表20260324-0330.xlsx": {
+      "json": "data-json/2026/03/【JFM指導】大溪廠生產管理報表20260324-0330.json",
+      "sourceSha256": "3ff8b487d60a615bdd8a3e44af20b94b2fcaba506046238f720dc9ea03ebd161",
+      "jsonBytes": 131303
+    },
+    "2026/04/115.04.01-30屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/04/115.04.01-30屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "f9e15e9bb921acfc2f79749962bbb639ef5eb1ba1bfa80f91b321ca6070df2d8",
+      "jsonBytes": 3031920
+    },
+    "2026/04/【JFM指導】大溪廠生產管理報表20260331-0406.xlsx": {
+      "json": "data-json/2026/04/【JFM指導】大溪廠生產管理報表20260331-0406.json",
+      "sourceSha256": "36c3533d9b05554c0c9e0f1404bae80bf4a821aa018bec715d266de62a69343d",
+      "jsonBytes": 154919
+    },
+    "2026/04/【JFM指導】大溪廠生產管理報表202604.xlsx": {
+      "json": "data-json/2026/04/【JFM指導】大溪廠生產管理報表202604.json",
+      "sourceSha256": "4fbc76d62f5b31f6f2d214190ba0bf49780a229cbcb0ee88dbdcb48f3fc99895",
+      "jsonBytes": 129859
+    },
+    "2026/04/【JFM指導】大溪廠生產管理報表20260407-0413.xlsx": {
+      "json": "data-json/2026/04/【JFM指導】大溪廠生產管理報表20260407-0413.json",
+      "sourceSha256": "e93d1452a259b46c03930bca1e26c00281f08e1bd2a57dcc2d132afa8a9d3620",
+      "jsonBytes": 61167
+    },
+    "2026/04/【JFM指導】大溪廠生產管理報表20260414-0420.xlsx": {
+      "json": "data-json/2026/04/【JFM指導】大溪廠生產管理報表20260414-0420.json",
+      "sourceSha256": "9b309d32ccdf9501c80f63d8197b0fbe5b703f082f7e2f8a13d0e3846367adf5",
+      "jsonBytes": 84816
+    },
+    "2026/04/【JFM指導】大溪廠生產管理報表20260421-0427.xlsx": {
+      "json": "data-json/2026/04/【JFM指導】大溪廠生產管理報表20260421-0427.json",
+      "sourceSha256": "107c09f9f6397b607e088b61b2737839357390a45f46dfee3f9b86057b9caab1",
+      "jsonBytes": 108185
+    },
+    "2026/04/【JFM指導】大溪廠生產管理報表20260428-0504.xlsx": {
+      "json": "data-json/2026/04/【JFM指導】大溪廠生產管理報表20260428-0504.json",
+      "sourceSha256": "dc9f07c9a51bde7b9a188fb6ca276415a2a1d494b89fc4b13032ee34ec0a79d3",
+      "jsonBytes": 131700
+    },
+    "2026/05/115.05.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/05/115.05.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "9fc4f57057e63d4220d5e8fb76f622ee44ee4a0a9482b26bb905ce009b32836c",
+      "jsonBytes": 6653437
+    },
+    "2026/05/【JFM指導】大溪廠生產管理報表20260505-11.xlsx": {
+      "json": "data-json/2026/05/【JFM指導】大溪廠生產管理報表20260505-11.json",
+      "sourceSha256": "1d553f355c7e84d5848beb4486866df98d96ad49e2404132ce1879bcc11fc233",
+      "jsonBytes": 57995
+    },
+    "2026/05/【JFM指導】大溪廠生產管理報表20260512-18.xlsx": {
+      "json": "data-json/2026/05/【JFM指導】大溪廠生產管理報表20260512-18.json",
+      "sourceSha256": "0a856e6e851e0d2b8e47279f9fa9c2f4bb6a6e13cd2f7a81354c2c67f5965da2",
+      "jsonBytes": 81390
+    },
+    "2026/05/【JFM指導】大溪廠生產管理報表20260519-25.xlsx": {
+      "json": "data-json/2026/05/【JFM指導】大溪廠生產管理報表20260519-25.json",
+      "sourceSha256": "23fb2fde579b0d9fa693d35f05b6d444e962fa9f7520f0adfe09b5768d408a50",
+      "jsonBytes": 104858
+    },
+    "2026/05/【JFM指導】大溪廠生產管理報表20260526-0601.xlsx": {
+      "json": "data-json/2026/05/【JFM指導】大溪廠生產管理報表20260526-0601.json",
+      "sourceSha256": "cb0cc04b2ee31d51fd33b6eb1f271fb45a65088103a1627ae4aa5943a337db66",
+      "jsonBytes": 133558
+    },
+    "2026/06/115.06.01-30屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/06/115.06.01-30屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "03f5b119c2ee4d1d62a627ec3f21a5a4175ca999df3423a11ce2ed87264a95a7",
+      "jsonBytes": 7996210
+    },
+    "2026/06/【JFM指導】大溪廠生產管理報表20260602-08.xlsx": {
+      "json": "data-json/2026/06/【JFM指導】大溪廠生產管理報表20260602-08.json",
+      "sourceSha256": "c06410d9a7d5462bce0e6f02528182466a988cfd937fb6955422d09a96c04698",
+      "jsonBytes": 57580
+    },
+    "2026/06/【JFM指導】大溪廠生產管理報表20260609-15.xlsx": {
+      "json": "data-json/2026/06/【JFM指導】大溪廠生產管理報表20260609-15.json",
+      "sourceSha256": "a9d98635c8625d73b33fc522b2440050130923af5370ae67c5df8cea79789015",
+      "jsonBytes": 80844
+    },
+    "2026/06/【JFM指導】大溪廠生產管理報表20260616-22.xlsx": {
+      "json": "data-json/2026/06/【JFM指導】大溪廠生產管理報表20260616-22.json",
+      "sourceSha256": "e389185f129de336acaae866664ad7ad1e47533d1869e77c8c4acaa9250968a7",
+      "jsonBytes": 104360
+    },
+    "2026/06/【JFM指導】大溪廠生產管理報表20260623-29.xlsx": {
+      "json": "data-json/2026/06/【JFM指導】大溪廠生產管理報表20260623-29.json",
+      "sourceSha256": "6fea9581d9793c1208f706ed66038b21b2f68d106d2c8bcb8e90c6e1f837f882",
+      "jsonBytes": 127777
+    },
+    "2026/07/115.07.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/07/115.07.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "6746010249b25c12c1a160ae0aee2c2f1d8bb0969e34d97e6c3b20370a41b649",
+      "jsonBytes": 8255724
+    },
+    "2026/07/【JFM指導】大溪廠生產管理報表20260630-0706.xlsx": {
+      "json": "data-json/2026/07/【JFM指導】大溪廠生產管理報表20260630-0706.json",
+      "sourceSha256": "f0690c0b663fa7dc71fcc95b1df3baac9e4e948f9298d1dd5a41299726bc3938",
+      "jsonBytes": 155246
+    },
+    "2026/07/【JFM指導】大溪廠生產管理報表20260707-13.xlsx": {
+      "json": "data-json/2026/07/【JFM指導】大溪廠生產管理報表20260707-13.json",
+      "sourceSha256": "fe7ab955a9c2b83cf49fbcb6200bb3789c7b3b9f2f30b6c9b9fedc1fdec79760",
+      "jsonBytes": 164418
+    },
+    "2026/07/【JFM指導】大溪廠生產管理報表20260714-20.xlsx": {
+      "json": "data-json/2026/07/【JFM指導】大溪廠生產管理報表20260714-20.json",
+      "sourceSha256": "9bdb0cfa083de8e818581e5e59a2822c72dd1b96b46bf295e417e2abe1f413fc",
+      "jsonBytes": 191589
+    },
+    "2026/07/【JFM指導】大溪廠生產管理報表20260721-27.xlsx": {
+      "json": "data-json/2026/07/【JFM指導】大溪廠生產管理報表20260721-27.json",
+      "sourceSha256": "efa97e2932990fbf5b522dffddb927d39451da133c8c85dc550e987adf33b97c",
+      "jsonBytes": 218808
+    },
+    "2026/07/【JFM指導】大溪廠生產管理報表20260728-0803.xlsx": {
+      "json": "data-json/2026/07/【JFM指導】大溪廠生產管理報表20260728-0803.json",
+      "sourceSha256": "2203086ddfbb5f4057fb7839403bfb4b8b538757ea6abf698a94222c27623ab2",
+      "jsonBytes": 246838
+    },
+    "2026/08/115.08.01-31屏榮大溪半成品報廢管理表.xlsx": {
+      "json": "data-json/2026/08/115.08.01-31屏榮大溪半成品報廢管理表.json",
+      "sourceSha256": "4541880e8a9f9e062de0054f696df2168e3d5bfc5df2e969b56d3b5d0b313988",
+      "jsonBytes": 8035777
+    },
+    "2026/08/【JFM指導】大溪廠生產管理報表20260804-10.xlsx": {
+      "json": "data-json/2026/08/【JFM指導】大溪廠生產管理報表20260804-10.json",
+      "sourceSha256": "4c915a8183637893f1818c8da16871c4821ae89e0de0a95bc41819a9cfa85e71",
+      "jsonBytes": 61035
+    },
+    "2026/08/【JFM指導】大溪廠生產管理報表20260811-17.xlsx": {
+      "json": "data-json/2026/08/【JFM指導】大溪廠生產管理報表20260811-17.json",
+      "sourceSha256": "ba0a0ad41ccfcead34614aacc3ddc2a366894bb95c3dbcda37679de5ede78c86",
+      "jsonBytes": 84615
+    },
+    "2026/08/【JFM指導】大溪廠生產管理報表20260818-24.xlsx": {
+      "json": "data-json/2026/08/【JFM指導】大溪廠生產管理報表20260818-24.json",
+      "sourceSha256": "8db97d64625c57601bcb0a9d8abfc7d49a7b7edfaaa63e497964d0ad02898d9c",
+      "jsonBytes": 108429
+    },
+    "2026/08/【JFM指導】大溪廠生產管理報表20260825-31.xlsx": {
+      "json": "data-json/2026/08/【JFM指導】大溪廠生產管理報表20260825-31.json",
+      "sourceSha256": "7b739b0b1b17552090ddb1e5e875c86dda21aa83ced0ac7084853897f846665a",
+      "jsonBytes": 132179
+    }
+  }
+}
