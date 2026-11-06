@@ -381,6 +381,31 @@
       "json": "data-json/2026/09/【JFM指導】大溪廠生產管理報表20260908-14.json",
       "sourceSha256": "482d4ff51574d9f236030bee94665efa7d98494640787be578c7af08211b68aa",
       "jsonBytes": 59326
+    },
+    "2026/09/【JFM指導】大溪廠生產管理報表20260915-21.xlsx": {
+      "json": "data-json/2026/09/【JFM指導】大溪廠生產管理報表20260915-21.json",
+      "sourceSha256": "c3e14e17217fc5ec4c0bb95bbfd1087e2e5f2773abafc28e0d38764aa54cc20c",
+      "jsonBytes": 83036
+    },
+    "2026/09/【JFM指導】大溪廠生產管理報表20260922-28.xlsx": {
+      "json": "data-json/2026/09/【JFM指導】大溪廠生產管理報表20260922-28.json",
+      "sourceSha256": "23c5576af2cfe3c69bddd15a7296c7adbdc901f20dd616053ff9236b9bc88e56",
+      "jsonBytes": 106681
+    },
+    "2026/10/【JFM指導】大溪廠生產管理報表20261006-12.xlsx": {
+      "json": "data-json/2026/10/【JFM指導】大溪廠生產管理報表20261006-12.json",
+      "sourceSha256": "74a20df10473c0cce7cb817250a94bf37df60d67cef50d8471786cb464797e5f",
+      "jsonBytes": 59256
+    },
+    "2026/10/【JFM指導】大溪廠生產管理報表20261013-19.xlsx": {
+      "json": "data-json/2026/10/【JFM指導】大溪廠生產管理報表20261013-19.json",
+      "sourceSha256": "0403bfef9bc5421c328c4b07174ef72993715b2937c3e21bd5446b9a600a4999",
+      "jsonBytes": 82906
+    },
+    "2026/10/【JFM指導】大溪廠生產管理報表20261020-26.xlsx": {
+      "json": "data-json/2026/10/【JFM指導】大溪廠生產管理報表20261020-26.json",
+      "sourceSha256": "4febabdf0389faa4449fdafdd3a2dcd341d4ae9c847b54a01e771eee1f70f8d4",
+      "jsonBytes": 106849
     }
   }
 }
